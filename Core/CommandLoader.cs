@@ -51,7 +51,7 @@ public class CommandLoader
         }
 
         // Load plugin commands from plugins directory
-        var pluginDirectory = Path.Combine(AppContext.BaseDirectory, "Plugins");
+        var pluginDirectory = Path.Combine(AppContext.BaseDirectory, "plugins");
         var pluginLoader = new PluginLoader(pluginDirectory, logger);
         var pluginCommands = pluginLoader.LoadPlugins(verbosePluginLogging);
         commands.AddRange(pluginCommands);
