@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**rauch** is a .NET 10.0 console application with a reflection-based command architecture featuring automatic command discovery, validation, async execution, and dependency injection.
+**rauch** is a .NET 10.0 console application with a reflection-based command architecture featuring automatic command discovery, validation, async execution, dependency injection, and a powerful runtime plugin system.
 
 ## Build and Run Commands
 
@@ -23,6 +23,7 @@ dotnet run help
 dotnet run sum 2 3 7
 dotnet run run test1
 dotnet run install everything
+dotnet run hello "World"  # Plugin command
 ```
 
 ## Architecture
@@ -42,9 +43,17 @@ The application uses a **namespace-based reflection system** to automatically di
    - Implement `ICommand` interface directly
    - Loaded as top-level commands (e.g., `sum`, `help`)
 
-3. **Command Loading Rules** (see `CommandLoader.cs`):
+3. **Plugin Commands**:
+   - Located in `plugins/` directory as `.cs` source files
+   - Compiled at runtime using Roslyn (Microsoft.CodeAnalysis.CSharp)
+   - Automatically cached with SHA256-based invalidation
+   - Auto-injection of required using statements and namespace
+   - See **Plugin System** section for details
+
+4. **Command Loading Rules** (see `CommandLoader.cs`):
    - Only loads classes named `_Index` (groups) or in `Rauch.Commands.Standalone` namespace
    - SubCommands are NOT loaded as top-level commands (prevents duplication)
+   - Plugin commands loaded from `plugins/` directory via `PluginLoader`
    - `Help` command is special-cased and added after all other commands
 
 ### Attribute-Based Metadata System
@@ -52,6 +61,13 @@ The application uses a **namespace-based reflection system** to automatically di
 All command metadata is declared via attributes, **never as properties**:
 
 ```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Rauch.Commands;
+using Rauch.Core;
+using Rauch.Core.Attributes;
+
 [Command("sum", "Adds the specified numbers", Parameters = "<number1> <number2> ...")]
 [MinArguments(1)]
 [NumericArguments]
@@ -89,6 +105,12 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 - `_validationCache`: Caches `ValidationAttribute[]` lookups
 - Always use `CommandMetadata.GetName()`, `GetDescription()`, etc. instead of direct reflection
 
+**Plugin Compilation Caching** (`PluginLoader.cs`):
+- Compiled plugins cached in `plugins/.cache/` as DLLs
+- SHA256 hash comparison for source change detection
+- Only recompiles when source code changes
+- Dramatically improves startup performance for cached plugins
+
 ### Dependency Injection
 
 **ServiceContainer** (`Core/ServiceContainer.cs`):
@@ -108,6 +130,139 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 - `Debug()`: Dark gray - debug messages
 - Access logger via DI: `services.GetService<ILogger>()`
 
+**Verbose Logging Control**:
+- Plugin loading messages only shown when displaying help or during compilation
+- Silent operation for normal command execution
+- Controlled via `verbosePluginLogging` parameter in `CommandLoader.LoadCommands()`
+
+## Plugin System
+
+### Overview
+
+The plugin system allows dynamic loading of commands from `.cs` source files at runtime without recompiling the main application.
+
+**Key Features**:
+- Runtime C# compilation using Roslyn
+- Automatic caching with SHA256-based invalidation
+- Auto-injection of required using statements and namespace
+- Hot-reload capability (detects source changes)
+- No build step required for plugin development
+
+### Plugin Directory Structure
+
+```
+plugins/
+├── .cache/              # Auto-generated compiled DLLs (gitignored)
+│   ├── Hello.dll
+│   └── Hello.hash
+├── Hello.cs             # Your plugin source files
+└── MyPlugin.cs
+```
+
+### Creating a Plugin
+
+**Minimal Plugin** (everything auto-injected):
+```csharp
+[Command("hello", "Greets the user")]
+public class HelloPlugin : ICommand
+{
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    {
+        var logger = services.GetService<ILogger>();
+        logger?.Success("Hello from plugin!");
+        return Task.CompletedTask;
+    }
+}
+```
+
+**Explicit Plugin** (with all usings and namespace):
+```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Rauch.Commands;
+using Rauch.Core;
+using Rauch.Core.Attributes;
+
+namespace Rauch.Plugins;
+
+[Command("hello", "Greets the user", Parameters = "[name]")]
+public class HelloPlugin : ICommand
+{
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    {
+        var logger = services.GetService<ILogger>();
+        var name = args.Length > 0 ? args[0] : "World";
+
+        logger?.Success($"Hello, {name}!");
+
+        await Task.CompletedTask;
+    }
+}
+```
+
+### Auto-Injection Feature
+
+The plugin loader (`PluginLoader.cs`) automatically injects missing code:
+
+**Automatically Injected Using Statements**:
+```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Rauch.Commands;
+using Rauch.Core;
+using Rauch.Core.Attributes;
+```
+
+**Automatically Injected Namespace**:
+```csharp
+namespace Rauch.Plugins;
+```
+
+**Behavior**:
+- Only injects what's missing (no duplicates)
+- Detects existing using statements and namespace declarations
+- Debug messages show what was auto-injected during compilation
+- Allows minimal plugin code for rapid development
+
+### Plugin Compilation Process
+
+1. **Load**: Plugin `.cs` files discovered in `plugins/` directory
+2. **Hash Check**: SHA256 hash of source compared with cached `.hash` file
+3. **Cache Hit**: If hash matches, load pre-compiled `.dll` from cache
+4. **Cache Miss**: If hash differs or no cache exists:
+   - Auto-inject missing using statements and namespace
+   - Compile source to `.dll` using Roslyn
+   - Save `.dll` and `.hash` to cache
+   - Load compiled assembly
+5. **Instantiate**: Extract `ICommand` implementations and instantiate
+
+### Plugin Development Workflow
+
+1. Create `.cs` file in `plugins/` directory
+2. Write minimal command class (auto-injection handles the rest)
+3. Run application - plugin compiles automatically
+4. Edit plugin source - changes detected and recompiled automatically
+5. No restart needed for subsequent runs (cached until changed)
+
+### Plugin Cache Management
+
+**Cache Location**: `plugins/.cache/` (excluded from git via `.gitignore`)
+
+**Cache Files**:
+- `<PluginName>.dll`: Compiled assembly
+- `<PluginName>.hash`: SHA256 hash of source code
+
+**Cache Invalidation**:
+- Automatic when source file changes
+- Manual: Delete `plugins/.cache/` directory to force full recompilation
+
+**Performance**:
+- First run: ~1-3 seconds compilation time
+- Cached runs: <100ms load time
+- Significant startup performance improvement
+
 ## Adding New Commands
 
 ### Creating a Standalone Command
@@ -116,9 +271,17 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 2. Implement `ICommand` interface
 3. Add `[Command]` attribute with name and description
 4. Add validation attributes as needed
-5. Command will be automatically discovered and loaded
+5. Add required using statements (no ImplicitUsings)
+6. Command will be automatically discovered and loaded
 
 ```csharp
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Rauch.Commands;
+using Rauch.Core;
+using Rauch.Core.Attributes;
+
 [Command("mycommand", "Description of my command", Parameters = "<arg1>")]
 [MinArguments(1)]
 public class MyCommand : ICommand
@@ -138,6 +301,11 @@ public class MyCommand : ICommand
 1. Create folder `Commands/<GroupName>/`
 2. Create `_Index.cs` with `BaseCommandGroup`:
    ```csharp
+   using Rauch.Core;
+   using Rauch.Core.Attributes;
+
+   namespace Rauch.Commands.<GroupName>;
+
    [Command("groupname", "Description", IsGroup = true)]
    public class _Index : BaseCommandGroup { }
    ```
@@ -145,6 +313,13 @@ public class MyCommand : ICommand
 4. Subcommands are **automatically loaded** by `BaseCommandGroup` via namespace reflection
 
 **Important**: Subcommands in a group namespace are **NOT** loaded as top-level commands by `CommandLoader`.
+
+### Creating a Plugin Command
+
+1. Create file in `plugins/<PluginName>.cs`
+2. Write minimal command class (using/namespace optional - auto-injected)
+3. Plugin compiles automatically on next run
+4. See **Plugin System** section for details
 
 ### Hidden/Debug Commands
 
@@ -157,17 +332,29 @@ Hidden commands execute normally but don't appear in help output.
 
 ## Key Files
 
-- `Program.cs`: Entry point, DI setup, command routing, validation
-- `Core/CommandLoader.cs`: Reflection-based command discovery (top-level only)
+**Application Entry**:
+- `Program.cs`: Entry point, DI setup, command routing, validation, plugin verbose logging control
+
+**Core Infrastructure**:
+- `Core/CommandLoader.cs`: Reflection-based command discovery (top-level + plugins)
+- `Core/PluginLoader.cs`: Runtime C# compilation, caching, auto-injection
 - `Core/BaseCommandGroup.cs`: Base class for groups, loads subcommands via reflection
 - `Core/CommandMetadata.cs`: Cached reflection helper for reading attributes
-- `Core/ServiceContainer.cs`: Simple DI container
+- `Core/ServiceContainer.cs`: Lightweight DI container
 - `Core/ConsoleLogger.cs`: Console logger implementation with color support
-- `Core/Interfaces/ILogger.cs`: Logger interface with severity levels
-- `Core/Attributes/CommandAttribute.cs`: Command metadata declaration
-- `Core/Attributes/ValidationAttribute.cs`: Base class for argument validators
+
+**Interfaces**:
 - `Core/Interfaces/ICommand.cs`: All commands implement this (async pattern)
 - `Core/Interfaces/ICommandGroup.cs`: Extends ICommand with SubCommands property
+- `Core/Interfaces/ILogger.cs`: Logger interface with severity levels
+
+**Attributes**:
+- `Core/Attributes/CommandAttribute.cs`: Command metadata declaration
+- `Core/Attributes/ValidationAttribute.cs`: Base class for argument validators
+
+**Project Configuration**:
+- `rauch.csproj`: .NET 10.0 project, excludes `plugins/` from compilation
+- `.gitignore`: Ignores build artifacts and plugin cache
 
 ## Critical Design Decisions
 
@@ -178,3 +365,26 @@ Hidden commands execute normally but don't appear in help output.
 5. **Namespace-based organization**: Command groups use namespace + `_Index.cs` pattern
 6. **Separation of concerns**: Top-level commands loaded by `CommandLoader`, subcommands loaded by `BaseCommandGroup`
 7. **Colored logging**: All console output uses ILogger with color-coded severity levels
+8. **No ImplicitUsings**: All using statements explicit for clarity
+9. **Runtime plugin compilation**: Roslyn-based C# compilation for plugins
+10. **Aggressive caching**: SHA256-based cache invalidation for fast startup
+11. **Auto-injection**: Minimal plugin boilerplate via automatic code injection
+12. **Verbose logging control**: Silent by default, verbose only when needed (help/compilation)
+
+## Dependencies
+
+**NuGet Packages**:
+- `Microsoft.CodeAnalysis.CSharp` (v4.12.0): Roslyn compiler for plugin system
+
+**Framework**:
+- .NET 10.0 (RC)
+
+## Development Guidelines
+
+1. **Adding Commands**: Prefer plugins for experimental commands, use Standalone for core features
+2. **Using Statements**: Always explicit (no ImplicitUsings), required for all non-plugin code
+3. **Logging**: Use ILogger for all output, respect severity levels
+4. **Validation**: Use ValidationAttributes instead of manual checks
+5. **Async**: Always use async/await properly, even if no async operations
+6. **Cache**: Trust the plugin cache system - it handles invalidation automatically
+7. **Namespace**: Commands in `Rauch.Commands.Standalone`, groups in `Rauch.Commands.<GroupName>`, plugins in `Rauch.Plugins`
