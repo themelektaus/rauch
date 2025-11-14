@@ -16,7 +16,7 @@ namespace Rauch.Commands.Standalone;
 [Command("update", "Updates rauch to the latest version from GitHub")]
 public class Update : ICommand
 {
-    private const string GitHubRawUrl = "https://github.com/themelektaus/rauch/raw/main/Build/Windows/rauch.exe";
+    private const string GitHubRawUrl = "https://raw.githubusercontent.com/themelektaus/rauch/main/Build/Windows/rauch.exe";
     private const string GitHubApiUrl = "https://api.github.com/repos/themelektaus/rauch/contents/Plugins";
     private const string GitHubRawPluginBase = "https://raw.githubusercontent.com/themelektaus/rauch/main/Plugins/";
     private const string TempFileName = "rauch.exe.new";
