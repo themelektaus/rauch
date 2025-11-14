@@ -11,9 +11,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="plugins\**" />
-    <Compile Remove="plugins\**" />
-    <EmbeddedResource Remove="plugins\**" />
+    <None Remove="Plugins\**" />
+    <Compile Remove="Plugins\**" />
+    <EmbeddedResource Remove="Plugins\**" />
   </ItemGroup>
 
   <ItemGroup>
