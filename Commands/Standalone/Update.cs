@@ -141,7 +141,13 @@ exit
             }
 
             var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-            var files = JsonSerializer.Deserialize<List<GitHubFile>>(jsonContent);
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+
+            var files = JsonSerializer.Deserialize<List<GitHubFile>>(jsonContent, options);
 
             if (files == null || files.Count == 0)
             {
