@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Rauch.Commands;
@@ -14,6 +17,8 @@ namespace Rauch.Commands.Standalone;
 public class Update : ICommand
 {
     private const string GitHubRawUrl = "https://github.com/themelektaus/rauch/raw/main/Build/Windows/rauch.exe";
+    private const string GitHubApiUrl = "https://api.github.com/repos/themelektaus/rauch/contents/Plugins";
+    private const string GitHubRawPluginBase = "https://raw.githubusercontent.com/themelektaus/rauch/main/Plugins/";
     private const string TempFileName = "rauch.exe.new";
 
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
@@ -32,13 +37,15 @@ public class Update : ICommand
 
             var currentDir = Path.GetDirectoryName(currentExePath);
             var tempFilePath = Path.Combine(currentDir, TempFileName);
+            var pluginsDir = Path.Combine(currentDir, "Plugins");
 
-            logger?.Info($"Downloading latest version from GitHub...");
-            logger?.Debug($"URL: {GitHubRawUrl}");
-
-            // Download new version
             using var httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromMinutes(5);
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "rauch-updater");
+
+            // Step 1: Download rauch.exe
+            logger?.Info($"Downloading latest rauch.exe from GitHub...");
+            logger?.Debug($"URL: {GitHubRawUrl}");
 
             var response = await httpClient.GetAsync(GitHubRawUrl, cancellationToken);
 
@@ -50,12 +57,25 @@ public class Update : ICommand
 
             var newFileBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
 
-            logger?.Info($"Downloaded {newFileBytes.Length:N0} bytes");
+            logger?.Info($"Downloaded rauch.exe ({newFileBytes.Length:N0} bytes)");
             logger?.Warning("Note: Update will always be applied. Version checking not yet implemented.");
 
             // Save to temp file
             await File.WriteAllBytesAsync(tempFilePath, newFileBytes, cancellationToken);
             logger?.Debug($"Saved to: {tempFilePath}");
+
+            // Step 2: Download plugin files
+            logger?.Info("Downloading plugin files from GitHub...");
+            var pluginFiles = await DownloadPluginFiles(httpClient, pluginsDir, logger, cancellationToken);
+
+            if (pluginFiles.Count > 0)
+            {
+                logger?.Success($"Downloaded {pluginFiles.Count} plugin file(s)");
+            }
+            else
+            {
+                logger?.Warning("No plugin files found or download failed");
+            }
 
             // Create update script
             var scriptPath = Path.Combine(currentDir, "update-script.bat");
@@ -96,5 +116,80 @@ exit
             logger?.Error($"Update failed: {ex.Message}");
             logger?.Debug($"Details: {ex}");
         }
+    }
+
+    private async Task<List<string>> DownloadPluginFiles(HttpClient httpClient, string pluginsDir, ILogger logger, CancellationToken cancellationToken)
+    {
+        var downloadedFiles = new List<string>();
+
+        try
+        {
+            // Ensure Plugins directory exists
+            if (!Directory.Exists(pluginsDir))
+            {
+                Directory.CreateDirectory(pluginsDir);
+            }
+
+            // Get list of files from GitHub API
+            logger?.Debug($"Fetching plugin list from: {GitHubApiUrl}");
+            var response = await httpClient.GetAsync(GitHubApiUrl, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger?.Warning($"Failed to fetch plugin list: HTTP {(int)response.StatusCode}");
+                return downloadedFiles;
+            }
+
+            var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            var files = JsonSerializer.Deserialize<List<GitHubFile>>(jsonContent);
+
+            if (files == null || files.Count == 0)
+            {
+                logger?.Debug("No plugin files found in repository");
+                return downloadedFiles;
+            }
+
+            // Download each .cs file
+            foreach (var file in files.Where(f => f.Name.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)))
+            {
+                try
+                {
+                    logger?.Debug($"Downloading plugin: {file.Name}");
+                    var downloadUrl = $"{GitHubRawPluginBase}{file.Name}";
+                    var fileResponse = await httpClient.GetAsync(downloadUrl, cancellationToken);
+
+                    if (fileResponse.IsSuccessStatusCode)
+                    {
+                        var content = await fileResponse.Content.ReadAsStringAsync(cancellationToken);
+                        var targetPath = Path.Combine(pluginsDir, file.Name);
+
+                        await File.WriteAllTextAsync(targetPath, content, cancellationToken);
+                        downloadedFiles.Add(file.Name);
+                        logger?.Debug($"  ✓ {file.Name}");
+                    }
+                    else
+                    {
+                        logger?.Warning($"  ✗ Failed to download {file.Name}: HTTP {(int)fileResponse.StatusCode}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger?.Warning($"  ✗ Error downloading {file.Name}: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.Warning($"Failed to download plugins: {ex.Message}");
+        }
+
+        return downloadedFiles;
+    }
+
+    private class GitHubFile
+    {
+        public string Name { get; set; }
+        public string Type { get; set; }
+        public string Download_Url { get; set; }
     }
 }
