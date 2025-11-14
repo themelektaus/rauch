@@ -1,10 +1,10 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Rauch.Commands;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.Loader;
 using System.Security.Cryptography;
 using System.Text;
@@ -119,13 +119,14 @@ public class PluginLoader
                 {
                     _logger?.Debug($"Loading {fileName} from cache");
                 }
-                return (LoadFromAssembly(cachedDllPath), false);
+                return (LoadFromAssembly(AssemblyLoadContext.Default.LoadFromAssemblyPath(cachedDllPath)), false);
             }
         }
 
         // Need to compile
         _logger?.Debug($"Compiling {fileName}...");
-        var commands = CompileAndLoadPlugin(csFilePath, cachedDllPath);
+
+        var commands = CompileAndLoadPlugin(cachedDllPath, sourceCode);
 
         // Save hash for future comparisons
         File.WriteAllText(cachedHashPath, sourceHash);
@@ -146,10 +147,9 @@ public class PluginLoader
     /// <summary>
     /// Loads commands from a pre-compiled assembly
     /// </summary>
-    private List<ICommand> LoadFromAssembly(string assemblyPath)
+    private List<ICommand> LoadFromAssembly(Assembly assembly)
     {
         var commands = new List<ICommand>();
-        var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
 
         var commandTypes = assembly.GetTypes()
             .Where(t => typeof(ICommand).IsAssignableFrom(t) &&
@@ -181,44 +181,25 @@ public class PluginLoader
     /// Saves the compiled assembly to disk for caching
     /// Automatically injects required using statements if missing
     /// </summary>
-    private List<ICommand> CompileAndLoadPlugin(string csFilePath, string outputDllPath)
+    private List<ICommand> CompileAndLoadPlugin(string filePath, string sourceCode)
     {
         var commands = new List<ICommand>();
-
-        // Read source code
-        var sourceCode = File.ReadAllText(csFilePath);
 
         // Inject required using statements if missing
         sourceCode = EnsureRequiredUsings(sourceCode);
 
-        // Parse syntax tree
-        var syntaxTree = CSharpSyntaxTree.ParseText(sourceCode, path: csFilePath);
+        // Read source code
+        var compiler = new LiveCode.CSharpCompiler { sourceCode = sourceCode };
+        var compilerResult = compiler.Compile(filePath);
 
-        // Get references to required assemblies
-        var references = GetCompilationReferences();
-
-        // Create compilation
-        var assemblyName = Path.GetFileNameWithoutExtension(csFilePath);
-        var compilation = CSharpCompilation.Create(
-            assemblyName,
-            new[] { syntaxTree },
-            references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        // Compile to file
-        var result = compilation.Emit(outputDllPath);
-
-        if (!result.Success)
+        if (compilerResult.HasErrors())
         {
-            var errors = string.Join("\n", result.Diagnostics
-                .Where(d => d.Severity == DiagnosticSeverity.Error)
-                .Select(d => $"  {d.Location.GetLineSpan().StartLinePosition}: {d.GetMessage()}"));
-
+            var errors = string.Join("\n", compilerResult.errors.Select(x => $"[{x.line}] {x.message}"));
             throw new InvalidOperationException($"Compilation failed:\n{errors}");
         }
 
-        // Load the compiled assembly
-        return LoadFromAssembly(outputDllPath);
+        var assemblyReference = LiveCode.AssemblyReference.Create(File.ReadAllBytes(filePath));
+        return LoadFromAssembly(assemblyReference.Assembly);
     }
 
     /// <summary>
@@ -281,47 +262,5 @@ public class PluginLoader
         }
 
         return sourceCode;
-    }
-
-    /// <summary>
-    /// Gets all assembly references needed for compilation
-    /// </summary>
-    private List<MetadataReference> GetCompilationReferences()
-    {
-        var references = new List<MetadataReference>();
-
-        // Add core runtime assemblies
-        var coreAssemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
-
-        references.Add(MetadataReference.CreateFromFile(typeof(object).Assembly.Location)); // System.Private.CoreLib
-        references.Add(MetadataReference.CreateFromFile(typeof(Console).Assembly.Location)); // System.Console
-        references.Add(MetadataReference.CreateFromFile(typeof(ICommand).Assembly.Location)); // Current assembly (rauch)
-        references.Add(MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location)); // System.Linq
-        references.Add(MetadataReference.CreateFromFile(typeof(Task).Assembly.Location)); // System.Threading.Tasks
-        references.Add(MetadataReference.CreateFromFile(typeof(IServiceProvider).Assembly.Location)); // System.ComponentModel
-
-        // Add other required runtime assemblies
-        var runtimeAssemblies = new[]
-        {
-            "System.Runtime.dll",
-            "System.Collections.dll",
-            "System.Linq.dll",
-            "System.Threading.dll",
-            "System.Threading.Tasks.dll",
-            "System.ComponentModel.dll",
-            "System.ComponentModel.Primitives.dll",
-            "netstandard.dll"
-        };
-
-        foreach (var asmName in runtimeAssemblies)
-        {
-            var asmPath = Path.Combine(coreAssemblyPath, asmName);
-            if (File.Exists(asmPath))
-            {
-                references.Add(MetadataReference.CreateFromFile(asmPath));
-            }
-        }
-
-        return references;
     }
 }
