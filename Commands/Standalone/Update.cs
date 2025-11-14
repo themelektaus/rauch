@@ -1,9 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Rauch.Commands;
@@ -52,19 +50,8 @@ public class Update : ICommand
 
             var newFileBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
 
-            // Check if downloaded file is different from current
-            if (File.Exists(currentExePath))
-            {
-                var currentFileBytes = await File.ReadAllBytesAsync(currentExePath, cancellationToken);
-
-                if (currentFileBytes.SequenceEqual(newFileBytes))
-                {
-                    logger?.Success("Already up to date! No update needed.");
-                    return;
-                }
-            }
-
             logger?.Info($"Downloaded {newFileBytes.Length:N0} bytes");
+            logger?.Warning("Note: Update will always be applied. Version checking not yet implemented.");
 
             // Save to temp file
             await File.WriteAllBytesAsync(tempFilePath, newFileBytes, cancellationToken);
