@@ -93,7 +93,7 @@ public abstract class BaseCommandGroup : ICommandGroup
     private List<ICommand> LoadSubCommands()
     {
         var subCommands = new List<ICommand>();
-        var assembly = Assembly.GetExecutingAssembly();
+        var assembly = GetType().Assembly;
 
         // Determine namespace based on group name
         var expectedNamespace = GetType().Namespace;

@@ -75,3 +75,6 @@ desktop.ini
 _ReSharper*/
 *.[Rr]e[Ss]harper
 *.DotSettings.user
+
+/Build/
+!/Build/Windows/rauch.exe

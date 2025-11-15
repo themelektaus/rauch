@@ -2,7 +2,6 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
@@ -13,17 +12,18 @@ public class CSharpCompiler
 {
     public LanguageVersion languageVersion = LanguageVersion.CSharp13;
 
+    public string assemblyName;
     public string sourceCode;
 
-    public CompilerResult Compile(string filePath)
+    public (string filePath, string error) Compile(string filePath)
     {
         var sourceText = SourceText.From(sourceCode);
         var options = CSharpParseOptions.Default.WithLanguageVersion(languageVersion);
         var syntaxTree = SyntaxFactory.ParseSyntaxTree(sourceText, options);
 
         var compilation = CSharpCompilation.Create(
-            null,
-            new[] { syntaxTree },
+            assemblyName,
+            [ syntaxTree ],
             references: GetReferences(),
             options: new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
@@ -35,28 +35,17 @@ public class CSharpCompiler
         var result = compilation.Emit(filePath);
         if (!result.Success)
         {
-            return new()
-            {
-                sourceCode = sourceCode,
-                filePath = null,
-                errors = result.Diagnostics
-                    .Where(x => x.IsWarningAsError || x.Severity == DiagnosticSeverity.Error)
-                    .Select(x => new CompilerResult.Error
-                    {
-                        id = x.Id,
-                        message = x.GetMessage(),
-                        line = x.Location.GetLineSpan().StartLinePosition.Line + 1
-                    })
-                    .ToArray()
-            };
+            return (
+                null,
+                string.Join("\n",
+                    result.Diagnostics
+                        .Where(x => x.IsWarningAsError || x.Severity == DiagnosticSeverity.Error)
+                        .Select(x => $"${x.Location.GetLineSpan().StartLinePosition.Line + 1}: {x.GetMessage()}")
+                )
+            );
         }
 
-        return new()
-        {
-            sourceCode = sourceCode,
-            filePath = filePath,
-            errors = []
-        };
+        return (filePath, null);
     }
 
     static List<PortableExecutableReference> references;

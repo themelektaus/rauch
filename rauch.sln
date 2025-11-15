@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11123.170 d18.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "rauch", "rauch.csproj", "{CA6C3900-9CED-7B80-F7E1-FBFCEF7AC3AD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CA6C3900-9CED-7B80-F7E1-FBFCEF7AC3AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA6C3900-9CED-7B80-F7E1-FBFCEF7AC3AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA6C3900-9CED-7B80-F7E1-FBFCEF7AC3AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA6C3900-9CED-7B80-F7E1-FBFCEF7AC3AD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3F9248A8-6A84-4794-9E3D-9CAE763411BC}
+	EndGlobalSection
+EndGlobal

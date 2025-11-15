@@ -11,9 +11,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Plugins\**" />
     <Compile Remove="Plugins\**" />
     <EmbeddedResource Remove="Plugins\**" />
+    <None Include="Plugins\**\*.cs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

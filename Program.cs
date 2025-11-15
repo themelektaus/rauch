@@ -22,7 +22,7 @@ if (showingHelp)
     var helpCommand = CommandLoader.FindCommand(commands, "help");
     if (helpCommand != null)
     {
-        await helpCommand.ExecuteAsync(Array.Empty<string>(), services);
+        await helpCommand.ExecuteAsync([], services);
     }
     return;
 }

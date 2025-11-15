@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.Loader;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Rauch.Core;
@@ -21,6 +22,19 @@ public class PluginLoader
     private readonly string _pluginDirectory;
     private readonly string _cacheDirectory;
     private readonly ILogger _logger;
+
+    private static readonly string[] RequiredUsings = new[]
+    {
+        "using System;",
+        "using System.Threading;",
+        "using System.Threading.Tasks;",
+        "using System.Linq;",
+        "using System.Collections.Generic;",
+        "using System.Reflection;",
+        "using Rauch.Commands;",
+        "using Rauch.Core;",
+        "using Rauch.Core.Attributes;"
+    };
 
     public PluginLoader(string pluginDirectory, ILogger logger = null)
     {
@@ -38,6 +52,7 @@ public class PluginLoader
     /// <summary>
     /// Loads all .cs files from the plugin directory and compiles them into commands
     /// Uses cached assemblies when source hasn't changed
+    /// Supports both standalone plugins and command groups
     /// </summary>
     public List<ICommand> LoadPlugins(bool verboseLogging = false)
     {
@@ -49,19 +64,11 @@ public class PluginLoader
             return commands;
         }
 
-        var csFiles = Directory.GetFiles(_pluginDirectory, "*.cs", SearchOption.AllDirectories)
-            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}.cache{Path.DirectorySeparatorChar}"))
-            .ToArray();
+        var compilationInfo = new List<(string name, int commandCount, bool wasCompiled)>();
 
-        if (csFiles.Length == 0)
-        {
-            _logger?.Debug($"No plugin files found in: {_pluginDirectory}");
-            return commands;
-        }
-
-        var compilationInfo = new List<(string fileName, int commandCount, bool wasCompiled)>();
-
-        foreach (var csFile in csFiles)
+        // 1. Load standalone plugins (*.cs files in root)
+        var standaloneFiles = Directory.GetFiles(_pluginDirectory, "*.cs", SearchOption.TopDirectoryOnly);
+        foreach (var csFile in standaloneFiles)
         {
             try
             {
@@ -75,20 +82,45 @@ public class PluginLoader
             }
         }
 
+        // 2. Load plugin groups (subdirectories with _Index.cs)
+        var subdirectories = Directory.GetDirectories(_pluginDirectory)
+            .Where(d => !d.EndsWith($"{Path.DirectorySeparatorChar}.cache"));
+
+        foreach (var subdir in subdirectories)
+        {
+            var indexFile = Path.Combine(subdir, "_Index.cs");
+            if (File.Exists(indexFile))
+            {
+                try
+                {
+                    // Load all .cs files in the group together
+                    var groupFiles = Directory.GetFiles(subdir, "*.cs", SearchOption.TopDirectoryOnly);
+                    var (groupCommands, wasCompiled) = LoadPluginGroupWithCache(subdir, groupFiles, verboseLogging);
+                    commands.AddRange(groupCommands);
+                    compilationInfo.Add((Path.GetFileName(subdir), groupCommands.Count, wasCompiled));
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Error($"Failed to load plugin group {Path.GetFileName(subdir)}: {ex.Message}");
+                }
+            }
+        }
+
         // Show summary if verbose or if any plugin was compiled
         var needsCompilation = compilationInfo.Any(i => i.wasCompiled);
         if (verboseLogging || needsCompilation)
         {
+            var totalFiles = standaloneFiles.Length + subdirectories.Count();
             var message = needsCompilation
-                ? $"Found {csFiles.Length} plugin file(s), compiling..."
-                : $"Found {csFiles.Length} plugin file(s), loading...";
+                ? $"Found {totalFiles} plugin(s), compiling..."
+                : $"Found {totalFiles} plugin(s), loading...";
             _logger?.Info(message);
 
             foreach (var info in compilationInfo)
             {
                 if (info.wasCompiled || verboseLogging)
                 {
-                    _logger?.Success($"Loaded plugin: {info.fileName} ({info.commandCount} command(s))");
+                    _logger?.Success($"Loaded plugin: {info.name} ({info.commandCount} command(s))");
                 }
             }
         }
@@ -104,9 +136,9 @@ public class PluginLoader
     {
         var sourceCode = File.ReadAllText(csFilePath);
         var sourceHash = ComputeHash(sourceCode);
-        var fileName = Path.GetFileNameWithoutExtension(csFilePath);
-        var cachedDllPath = Path.Combine(_cacheDirectory, $"{fileName}.dll");
-        var cachedHashPath = Path.Combine(_cacheDirectory, $"{fileName}.hash");
+        var name = Path.GetFileNameWithoutExtension(csFilePath);
+        var cachedDllPath = Path.Combine(_cacheDirectory, $"{name}.dll");
+        var cachedHashPath = Path.Combine(_cacheDirectory, $"{name}.hash");
 
         // Check if cached version exists and is up-to-date
         if (File.Exists(cachedDllPath) && File.Exists(cachedHashPath))
@@ -117,16 +149,58 @@ public class PluginLoader
                 // Load from cache
                 if (verboseLogging)
                 {
-                    _logger?.Debug($"Loading {fileName} from cache");
+                    _logger?.Debug($"Loading {name} from cache");
                 }
-                return (LoadFromAssembly(AssemblyLoadContext.Default.LoadFromAssemblyPath(cachedDllPath)), false);
+
+                return (LoadFromAssembly(File.ReadAllBytes(cachedDllPath)), false);
             }
         }
 
         // Need to compile
-        _logger?.Debug($"Compiling {fileName}...");
+        _logger?.Debug($"Compiling {name}...");
 
-        var commands = CompileAndLoadPlugin(cachedDllPath, sourceCode);
+        var commands = CompileAndLoadPlugin(name, cachedDllPath, sourceCode);
+
+        // Save hash for future comparisons
+        File.WriteAllText(cachedHashPath, sourceHash);
+
+        return (commands, true);
+    }
+
+    /// <summary>
+    /// Loads a plugin group (multiple .cs files) using cached DLL if available
+    /// Returns tuple of (commands, wasCompiled)
+    /// </summary>
+    private (List<ICommand> commands, bool wasCompiled) LoadPluginGroupWithCache(string groupDir, string[] csFiles, bool verboseLogging)
+    {
+        var groupName = Path.GetFileName(groupDir);
+        var cachedDllPath = Path.Combine(_cacheDirectory, $"{groupName}.dll");
+        var cachedHashPath = Path.Combine(_cacheDirectory, $"{groupName}.hash");
+
+        // Compute combined hash of all source files
+        var combinedSource = string.Join("\n", csFiles.Select(f => File.ReadAllText(f)));
+        var sourceHash = ComputeHash(combinedSource);
+
+        // Check if cached version exists and is up-to-date
+        if (File.Exists(cachedDllPath) && File.Exists(cachedHashPath))
+        {
+            var cachedHash = File.ReadAllText(cachedHashPath);
+            if (cachedHash == sourceHash)
+            {
+                // Load from cache
+                if (verboseLogging)
+                {
+                    _logger?.Debug($"Loading {groupName} from cache");
+                }
+
+                return (LoadFromAssembly(File.ReadAllBytes(cachedDllPath), isGroup: true), false);
+            }
+        }
+
+        // Need to compile
+        _logger?.Debug($"Compiling {groupName}...");
+
+        var commands = CompileAndLoadPluginGroup(groupName, cachedDllPath, csFiles);
 
         // Save hash for future comparisons
         File.WriteAllText(cachedHashPath, sourceHash);
@@ -146,25 +220,57 @@ public class PluginLoader
 
     /// <summary>
     /// Loads commands from a pre-compiled assembly
+    /// Uses duck-typing to find types with ExecuteAsync method and CommandAttribute
     /// </summary>
-    private List<ICommand> LoadFromAssembly(Assembly assembly)
+    /// <param name="isGroup">If true, only loads the command group (_Index class), not subcommands</param>
+    private List<ICommand> LoadFromAssembly(byte[] rawAssembly, bool isGroup = false)
     {
         var commands = new List<ICommand>();
 
+        var assembly = LiveCode.AssemblyReference.Create(rawAssembly).Assembly;
+
+        // Find all types with [Command] attribute
         var commandTypes = assembly.GetTypes()
-            .Where(t => typeof(ICommand).IsAssignableFrom(t) &&
-                       !t.IsInterface &&
-                       !t.IsAbstract)
+            .Where(t => !t.IsInterface &&
+                        !t.IsAbstract &&
+                        t.GetCustomAttributesData().Any(a => a.AttributeType.Name == "CommandAttribute"))
             .ToList();
 
         foreach (var type in commandTypes)
         {
             try
             {
-                var instance = Activator.CreateInstance(type) as ICommand;
-                if (instance != null)
+                // For plugin groups, only load the _Index class (marked with IsGroup = true)
+                if (isGroup)
                 {
-                    commands.Add(instance);
+                    var commandAttr = type.GetCustomAttributesData()
+                        .FirstOrDefault(a => a.AttributeType.Name == "CommandAttribute");
+
+                    var isGroupAttr = commandAttr?.NamedArguments
+                        .FirstOrDefault(a => a.MemberName == "IsGroup");
+
+                    if (isGroupAttr == null || !(isGroupAttr.Value.TypedValue.Value is bool isGroupValue) || !isGroupValue)
+                    {
+                        // Skip non-group commands
+                        continue;
+                    }
+                }
+
+                // Check if it has ExecuteAsync method (duck-typing)
+                var executeMethod = type.GetMethod("ExecuteAsync", new[]
+                {
+                    typeof(string[]),
+                    typeof(IServiceProvider),
+                    typeof(CancellationToken)
+                });
+
+                if (executeMethod != null)
+                {
+                    var instance = Activator.CreateInstance(type) as ICommand;
+                    if (instance != null)
+                    {
+                        commands.Add(instance);
+                    }
                 }
             }
             catch (Exception ex)
@@ -179,9 +285,9 @@ public class PluginLoader
     /// <summary>
     /// Compiles a single .cs file and extracts ICommand implementations
     /// Saves the compiled assembly to disk for caching
-    /// Automatically injects required using statements if missing
+    /// Automatically injects required using statements and duck-typed interfaces if missing
     /// </summary>
-    private List<ICommand> CompileAndLoadPlugin(string filePath, string sourceCode)
+    private List<ICommand> CompileAndLoadPlugin(string name, string filePath, string sourceCode)
     {
         var commands = new List<ICommand>();
 
@@ -189,38 +295,144 @@ public class PluginLoader
         sourceCode = EnsureRequiredUsings(sourceCode);
 
         // Read source code
-        var compiler = new LiveCode.CSharpCompiler { sourceCode = sourceCode };
+        var compiler = new LiveCode.CSharpCompiler
+        {
+            assemblyName = $"Plugin_{name}",
+            sourceCode = sourceCode
+        };
         var compilerResult = compiler.Compile(filePath);
 
-        if (compilerResult.HasErrors())
+        if (compilerResult.error is not null)
         {
-            var errors = string.Join("\n", compilerResult.errors.Select(x => $"[{x.line}] {x.message}"));
-            throw new InvalidOperationException($"Compilation failed:\n{errors}");
+            throw new InvalidOperationException($"Compilation failed:\n{compilerResult.error}");
         }
 
-        var assemblyReference = LiveCode.AssemblyReference.Create(File.ReadAllBytes(filePath));
-        return LoadFromAssembly(assemblyReference.Assembly);
+        return LoadFromAssembly(File.ReadAllBytes(filePath));
+    }
+
+    /// <summary>
+    /// Compiles multiple .cs files (plugin group) and extracts ICommand implementations
+    /// Saves the compiled assembly to disk for caching
+    /// Automatically injects required using statements if missing
+    /// Combines all files into a single namespace
+    /// </summary>
+    private List<ICommand> CompileAndLoadPluginGroup(string groupName, string outputPath, string[] csFiles)
+    {
+        var allUsings = new HashSet<string>();
+        var allClassDefinitions = new List<string>();
+        string commonNamespace = null;
+
+        // Process each file: extract usings, namespace, and class definitions
+        foreach (var csFile in csFiles)
+        {
+            var source = File.ReadAllText(csFile);
+            var lines = source.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+
+            var usings = new List<string>();
+            var classContent = new List<string>();
+            var insideNamespace = false;
+
+            foreach (var line in lines)
+            {
+                var trimmed = line.TrimStart();
+
+                // Extract using statements
+                if (trimmed.StartsWith("using ") && trimmed.EndsWith(";"))
+                {
+                    allUsings.Add(trimmed);
+                    continue;
+                }
+
+                // Extract namespace
+                if (trimmed.StartsWith("namespace "))
+                {
+                    if (commonNamespace == null)
+                    {
+                        commonNamespace = trimmed.TrimEnd(';');
+                    }
+                    insideNamespace = true;
+                    continue;
+                }
+
+                // Skip empty lines before first content
+                if (!insideNamespace && string.IsNullOrWhiteSpace(trimmed))
+                {
+                    continue;
+                }
+
+                // Add class content (everything inside namespace)
+                if (insideNamespace || !string.IsNullOrWhiteSpace(trimmed))
+                {
+                    classContent.Add(line);
+                }
+            }
+
+            allClassDefinitions.Add(string.Join(Environment.NewLine, classContent));
+        }
+
+        // Add required usings
+        foreach (var u in RequiredUsings)
+        {
+            allUsings.Add(u);
+        }
+
+        // Build combined source
+        var combinedSource = new System.Text.StringBuilder();
+
+        // Add all usings
+        foreach (var u in allUsings.OrderBy(x => x))
+        {
+            combinedSource.AppendLine(u);
+        }
+        combinedSource.AppendLine();
+
+        // Add namespace with block-scoped syntax
+        var namespaceName = (commonNamespace ?? "namespace Rauch.Plugins.Generated")
+            .TrimEnd(';')
+            .Replace("namespace ", "")
+            .Trim();
+
+        combinedSource.AppendLine($"namespace {namespaceName}");
+        combinedSource.AppendLine("{");
+
+        // Add all class definitions
+        combinedSource.AppendLine(string.Join(Environment.NewLine + Environment.NewLine, allClassDefinitions));
+
+        combinedSource.AppendLine("}");
+
+        // Compile all files together
+        var sourceCodeStr = combinedSource.ToString();
+
+        // Debug: Save combined source for inspection
+        var debugPath = Path.Combine(_cacheDirectory, $"{groupName}_debug.cs");
+        File.WriteAllText(debugPath, sourceCodeStr);
+        _logger?.Debug($"Saved combined source to: {debugPath}");
+
+        var compiler = new LiveCode.CSharpCompiler
+        {
+            assemblyName = $"PluginGroup_{groupName}",
+            sourceCode = sourceCodeStr
+        };
+        var compilerResult = compiler.Compile(outputPath);
+
+        if (compilerResult.error is not null)
+        {
+            throw new InvalidOperationException($"Compilation failed:\n{compilerResult.error}");
+        }
+
+        return LoadFromAssembly(File.ReadAllBytes(outputPath), isGroup: true);
     }
 
     /// <summary>
     /// Ensures that the required using statements and namespace are present in the source code
     /// Automatically injects missing using statements and namespace if needed
+    /// Inserts usings BEFORE any namespace declaration
     /// </summary>
     private string EnsureRequiredUsings(string sourceCode)
     {
-        var requiredUsings = new[]
-        {
-            "using System;",
-            "using System.Threading;",
-            "using System.Threading.Tasks;",
-            "using Rauch.Commands;",
-            "using Rauch.Core;",
-            "using Rauch.Core.Attributes;"
-        };
-
         var missingUsings = new List<string>();
 
-        foreach (var usingStatement in requiredUsings)
+        foreach (var usingStatement in RequiredUsings)
         {
             if (!sourceCode.Contains(usingStatement))
             {
@@ -228,39 +440,40 @@ public class PluginLoader
             }
         }
 
-        // Check if namespace is missing
-        bool needsNamespace = !sourceCode.Contains("namespace Rauch.Plugins") &&
-                              !sourceCode.Contains("namespace ") &&
-                              !sourceCode.Contains("namespace\r") &&
-                              !sourceCode.Contains("namespace\n");
-
-        // Build the injection block
-        var injectionParts = new List<string>();
-
-        if (missingUsings.Count > 0)
+        if (missingUsings.Count == 0)
         {
-            injectionParts.Add(string.Join(Environment.NewLine, missingUsings));
-            _logger?.Debug($"Auto-injected {missingUsings.Count} missing using statement(s)");
+            return sourceCode;
         }
 
-        if (needsNamespace)
+        _logger?.Debug($"Auto-injected {missingUsings.Count} missing using statement(s)");
+
+        // Find namespace declaration
+        var lines = sourceCode.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+        var namespaceIndex = -1;
+
+        for (int i = 0; i < lines.Length; i++)
         {
-            if (injectionParts.Count > 0)
+            var trimmed = lines[i].TrimStart();
+            if (trimmed.StartsWith("namespace "))
             {
-                injectionParts.Add(""); // Empty line between usings and namespace
+                namespaceIndex = i;
+                break;
             }
-            injectionParts.Add("namespace Rauch.Plugins;");
-            injectionParts.Add(""); // Empty line after namespace
-            _logger?.Debug("Auto-injected namespace Rauch.Plugins");
         }
 
-        // If there are any injections, prepend them to the source code
-        if (injectionParts.Count > 0)
+        if (namespaceIndex >= 0)
         {
-            var injectionBlock = string.Join(Environment.NewLine, injectionParts) + Environment.NewLine;
-            sourceCode = injectionBlock + sourceCode;
+            // Insert usings before namespace
+            var beforeNamespace = lines.Take(namespaceIndex).ToList();
+            var fromNamespace = lines.Skip(namespaceIndex).ToList();
+
+            beforeNamespace.AddRange(missingUsings);
+            beforeNamespace.Add(""); // Empty line before namespace
+
+            return string.Join(Environment.NewLine, beforeNamespace.Concat(fromNamespace));
         }
 
-        return sourceCode;
+        // No namespace - prepend usings
+        return string.Join(Environment.NewLine, missingUsings) + Environment.NewLine + Environment.NewLine + sourceCode;
     }
 }
