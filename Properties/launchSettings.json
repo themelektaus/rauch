@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "rauch": {
+      "commandName": "Project",
+      "commandLineArgs": "update"
+    }
+  }
+}

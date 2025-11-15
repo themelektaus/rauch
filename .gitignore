@@ -76,5 +76,4 @@ _ReSharper*/
 *.[Rr]e[Ss]harper
 *.DotSettings.user
 
-/Build/
-!/Build/Windows/rauch.exe
+/Build/Windows/Plugins/
