@@ -147,16 +147,16 @@ exit
                 PropertyNameCaseInsensitive = true
             };
 
-            var files = JsonSerializer.Deserialize<List<GitHubFile>>(jsonContent, options);
+            var items = JsonSerializer.Deserialize<List<GitHubFile>>(jsonContent, options);
 
-            if (files == null || files.Count == 0)
+            if (items == null || items.Count == 0)
             {
                 logger?.Debug("No plugin files found in repository");
                 return downloadedFiles;
             }
 
-            // Download each .cs file
-            foreach (var file in files.Where(f => f.Name.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)))
+            // Download root-level .cs files
+            foreach (var file in items.Where(f => f.Type == "file" && f.Name.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)))
             {
                 try
                 {
@@ -181,6 +181,74 @@ exit
                 catch (Exception ex)
                 {
                     logger?.Warning($"  ✗ Error downloading {file.Name}: {ex.Message}");
+                }
+            }
+
+            // Download subdirectories (1 level)
+            foreach (var dir in items.Where(d => d.Type == "dir"))
+            {
+                try
+                {
+                    logger?.Debug($"Processing subdirectory: {dir.Name}");
+
+                    // Create subdirectory
+                    var subDirPath = Path.Combine(pluginsDir, dir.Name);
+                    if (!Directory.Exists(subDirPath))
+                    {
+                        Directory.CreateDirectory(subDirPath);
+                    }
+
+                    // Fetch contents of subdirectory
+                    var subDirUrl = $"{GitHubApiUrl}/{dir.Name}";
+                    var subDirResponse = await httpClient.GetAsync(subDirUrl, cancellationToken);
+
+                    if (!subDirResponse.IsSuccessStatusCode)
+                    {
+                        logger?.Warning($"  ✗ Failed to fetch {dir.Name}: HTTP {(int)subDirResponse.StatusCode}");
+                        continue;
+                    }
+
+                    var subDirJson = await subDirResponse.Content.ReadAsStringAsync(cancellationToken);
+                    var subDirFiles = JsonSerializer.Deserialize<List<GitHubFile>>(subDirJson, options);
+
+                    if (subDirFiles == null || subDirFiles.Count == 0)
+                    {
+                        logger?.Debug($"  No files in {dir.Name}");
+                        continue;
+                    }
+
+                    // Download .cs files from subdirectory
+                    foreach (var file in subDirFiles.Where(f => f.Type == "file" && f.Name.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        try
+                        {
+                            logger?.Debug($"  Downloading: {dir.Name}/{file.Name}");
+                            var downloadUrl = $"{GitHubRawPluginBase}{dir.Name}/{file.Name}";
+                            var fileResponse = await httpClient.GetAsync(downloadUrl, cancellationToken);
+
+                            if (fileResponse.IsSuccessStatusCode)
+                            {
+                                var content = await fileResponse.Content.ReadAsStringAsync(cancellationToken);
+                                var targetPath = Path.Combine(subDirPath, file.Name);
+
+                                await File.WriteAllTextAsync(targetPath, content, cancellationToken);
+                                downloadedFiles.Add($"{dir.Name}/{file.Name}");
+                                logger?.Debug($"    ✓ {dir.Name}/{file.Name}");
+                            }
+                            else
+                            {
+                                logger?.Warning($"    ✗ Failed to download {dir.Name}/{file.Name}: HTTP {(int)fileResponse.StatusCode}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            logger?.Warning($"    ✗ Error downloading {dir.Name}/{file.Name}: {ex.Message}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger?.Warning($"  ✗ Error processing subdirectory {dir.Name}: {ex.Message}");
                 }
             }
         }
