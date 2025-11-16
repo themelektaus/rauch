@@ -1,9 +1,3 @@
-using Rauch.Core;
-using Rauch.Core.Attributes;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Rauch.Commands.Standalone;
 
 [Command("debug", "Internal debug command", Hidden = true)]

@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace Rauch.Commands;
 
 // Note: Kept in Rauch.Commands namespace for backward compatibility

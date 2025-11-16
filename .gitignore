@@ -76,4 +76,5 @@ _ReSharper*/
 *.[Rr]e[Ss]harper
 *.DotSettings.user
 
+/Build/Windows/data/
 /Build/Windows/Plugins/

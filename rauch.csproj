@@ -13,7 +13,7 @@
   <ItemGroup>
     <Compile Remove="Plugins\**" />
     <EmbeddedResource Remove="Plugins\**" />
-    <None Include="Plugins\**\*.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Plugins\**\*.cs" CopyToOutputDirectory="Always" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,5 +21,24 @@
     <Compile Remove="Build\**" />
     <EmbeddedResource Remove="Build\**" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Usings.cs">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Compile>
+  </ItemGroup>
+
+  <!-- Generate Usings.g.cs from Usings.cs during build -->
+  <Target Name="Usings" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <UsingsSourceFile>$(MSBuildProjectDirectory)\Usings.cs</UsingsSourceFile>
+      <GeneratedUsingsFile>$(MSBuildProjectDirectory)\Usings.g.cs</GeneratedUsingsFile>
+      <GeneratorScript>$(MSBuildProjectDirectory)\Usings.ps1</GeneratorScript>
+    </PropertyGroup>
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(GeneratorScript)&quot; -UsingsFile &quot;$(UsingsSourceFile)&quot; -OutputFile &quot;$(GeneratedUsingsFile)&quot;" />
+    <ItemGroup>
+      <Compile Include="$(GeneratedUsingsFile)" Condition="!Exists('$(GeneratedUsingsFile)')" />
+    </ItemGroup>
+  </Target>
 
 </Project>

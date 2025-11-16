@@ -1,5 +1,3 @@
-using System;
-
 namespace Rauch.Core;
 
 /// <summary>

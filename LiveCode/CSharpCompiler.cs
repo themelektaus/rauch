@@ -1,8 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 
@@ -40,7 +38,7 @@ public class CSharpCompiler
                 string.Join("\n",
                     result.Diagnostics
                         .Where(x => x.IsWarningAsError || x.Severity == DiagnosticSeverity.Error)
-                        .Select(x => $"${x.Location.GetLineSpan().StartLinePosition.Line + 1}: {x.GetMessage()}")
+                        .Select(x => $"Line {x.Location.GetLineSpan().StartLinePosition.Line + 1} => {x.GetMessage()}")
                 )
             );
         }

@@ -1,6 +1,4 @@
-using Rauch.Core;
-using System;
-using System.Linq;
+Environment.CurrentDirectory = AppContext.BaseDirectory;
 
 // Setup dependency injection container
 var services = new ServiceContainer();

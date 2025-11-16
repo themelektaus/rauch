@@ -1,14 +1,6 @@
-using Rauch.Core;
-using Rauch.Core.Attributes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Rauch.Commands.Standalone;
 
-[Command("help", "Shows this help text")]
+[Command("help", "Show this help text")]
 public class Help : ICommand
 {
     private readonly IEnumerable<ICommand> _availableCommands;

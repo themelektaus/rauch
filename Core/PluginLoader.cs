@@ -1,15 +1,5 @@
 using Microsoft.CodeAnalysis;
-using Rauch.Commands;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.Loader;
 using System.Security.Cryptography;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Rauch.Core;
 
@@ -23,18 +13,11 @@ public class PluginLoader
     private readonly string _cacheDirectory;
     private readonly ILogger _logger;
 
-    private static readonly string[] RequiredUsings = new[]
+    static IEnumerable<string> EnumerateRequiredUsings()
     {
-        "using System;",
-        "using System.Threading;",
-        "using System.Threading.Tasks;",
-        "using System.Linq;",
-        "using System.Collections.Generic;",
-        "using System.Reflection;",
-        "using Rauch.Commands;",
-        "using Rauch.Core;",
-        "using Rauch.Core.Attributes;"
-    };
+        // Returns usings from auto-generated Usings.g.cs (generated during build from Usings.cs)
+        return Usings.Namespaces.Select(x => $"using {x};");
+    }
 
     public PluginLoader(string pluginDirectory, ILogger logger = null)
     {
@@ -336,8 +319,8 @@ public class PluginLoader
             {
                 var trimmed = line.TrimStart();
 
-                // Extract using statements
-                if (trimmed.StartsWith("using ") && trimmed.EndsWith(";"))
+                // Extract using statements (only before namespace declaration)
+                if (!insideNamespace && trimmed.StartsWith("using ") && trimmed.EndsWith(";"))
                 {
                     allUsings.Add(trimmed);
                     continue;
@@ -371,7 +354,7 @@ public class PluginLoader
         }
 
         // Add required usings
-        foreach (var u in RequiredUsings)
+        foreach (var u in EnumerateRequiredUsings())
         {
             allUsings.Add(u);
         }
@@ -432,7 +415,7 @@ public class PluginLoader
     {
         var missingUsings = new List<string>();
 
-        foreach (var usingStatement in RequiredUsings)
+        foreach (var usingStatement in EnumerateRequiredUsings())
         {
             if (!sourceCode.Contains(usingStatement))
             {

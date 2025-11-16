@@ -1,19 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using Rauch.Commands;
-using Rauch.Core;
-using Rauch.Core.Attributes;
 
 namespace Rauch.Commands.Standalone;
 
-[Command("update", "Updates rauch to the latest version from GitHub")]
+[Command("update", "Update rauch to the latest version from GitHub")]
 public class Update : ICommand
 {
     private const string GitHubRawUrl = "https://raw.githubusercontent.com/themelektaus/rauch/main/Build/Windows/rauch.exe";

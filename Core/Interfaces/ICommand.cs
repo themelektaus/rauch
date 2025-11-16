@@ -1,7 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Rauch.Commands;
 
 // Note: Kept in Rauch.Commands namespace for backward compatibility

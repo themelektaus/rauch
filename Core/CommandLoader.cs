@@ -1,9 +1,4 @@
-using Rauch.Commands;
 using Rauch.Commands.Standalone;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Reflection;
 
 namespace Rauch.Core;

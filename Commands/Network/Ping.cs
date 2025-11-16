@@ -1,12 +1,6 @@
-using Rauch.Core;
-using Rauch.Core.Attributes;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Rauch.Commands.Network;
 
-[Command("ping", "Performs a ping", Parameters = "hostname")]
+[Command("ping", "Perform a ping", Parameters = "hostname")]
 [ExactArguments(1)]
 public class Ping : ICommand
 {
