@@ -32,7 +32,7 @@ public class CommandAttribute : Attribute
     /// </summary>
     public bool Hidden { get; set; }
 
-    public CommandAttribute(string name, string description)
+    public CommandAttribute(string name, string description = "")
     {
         Name = name;
         Description = description;

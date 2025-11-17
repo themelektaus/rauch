@@ -12,4 +12,9 @@ public interface ICommandGroup : ICommand
     /// List of all available subcommands (also ICommand)
     /// </summary>
     IEnumerable<ICommand> SubCommands { get; }
+
+    public new int GetCommandCount()
+    {
+        return SubCommands.Count();
+    }
 }

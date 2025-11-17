@@ -17,4 +17,9 @@ public interface ICommand
     /// <param name="services">Service provider for dependency injection</param>
     /// <param name="cancellationToken">Token for cancellation requests</param>
     Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default);
+
+    public int GetCommandCount()
+    {
+        return 1;
+    }
 }

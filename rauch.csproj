@@ -4,6 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>Logo.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

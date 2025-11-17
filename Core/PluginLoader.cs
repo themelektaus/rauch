@@ -35,7 +35,7 @@ public class PluginLoader
     /// <summary>
     /// Loads all .cs files from the plugin directory and compiles them into commands
     /// Uses cached assemblies when source hasn't changed
-    /// Supports both standalone plugins and command groups
+    /// Supports both root-level plugins and command groups
     /// </summary>
     public List<ICommand> LoadPlugins(bool verboseLogging = false)
     {
@@ -49,15 +49,19 @@ public class PluginLoader
 
         var compilationInfo = new List<(string name, int commandCount, bool wasCompiled)>();
 
-        // 1. Load standalone plugins (*.cs files in root)
-        var standaloneFiles = Directory.GetFiles(_pluginDirectory, "*.cs", SearchOption.TopDirectoryOnly);
-        foreach (var csFile in standaloneFiles)
+        // 1. Load root-level plugins (*.cs files in root)
+        var rootFiles = Directory.GetFiles(_pluginDirectory, "*.cs", SearchOption.TopDirectoryOnly);
+        foreach (var csFile in rootFiles)
         {
             try
             {
                 var (pluginCommands, wasCompiled) = LoadPluginWithCache(csFile, verboseLogging);
                 commands.AddRange(pluginCommands);
-                compilationInfo.Add((Path.GetFileName(csFile), pluginCommands.Count, wasCompiled));
+                compilationInfo.Add((
+                    name: Path.GetFileNameWithoutExtension(csFile),
+                    commandCount: pluginCommands.Count,
+                    wasCompiled
+                ));
             }
             catch (Exception ex)
             {
@@ -67,7 +71,8 @@ public class PluginLoader
 
         // 2. Load plugin groups (subdirectories with _Index.cs)
         var subdirectories = Directory.GetDirectories(_pluginDirectory)
-            .Where(d => !d.EndsWith($"{Path.DirectorySeparatorChar}.cache"));
+            .Where(d => !d.EndsWith($"{Path.DirectorySeparatorChar}.cache"))
+            .ToArray();
 
         foreach (var subdir in subdirectories)
         {
@@ -80,7 +85,12 @@ public class PluginLoader
                     var groupFiles = Directory.GetFiles(subdir, "*.cs", SearchOption.TopDirectoryOnly);
                     var (groupCommands, wasCompiled) = LoadPluginGroupWithCache(subdir, groupFiles, verboseLogging);
                     commands.AddRange(groupCommands);
-                    compilationInfo.Add((Path.GetFileName(subdir), groupCommands.Count, wasCompiled));
+
+                    compilationInfo.Add((
+                        name: Path.GetFileName(subdir),
+                        commandCount: groupCommands.Select(x => x.GetCommandCount()).Sum(),
+                        wasCompiled
+                    ));
                 }
                 catch (Exception ex)
                 {
@@ -93,10 +103,10 @@ public class PluginLoader
         var needsCompilation = compilationInfo.Any(i => i.wasCompiled);
         if (verboseLogging || needsCompilation)
         {
-            var totalFiles = standaloneFiles.Length + subdirectories.Count();
+            var totalFiles = rootFiles.Length + subdirectories.Length;
             var message = needsCompilation
-                ? $"Found {totalFiles} plugin(s), compiling..."
-                : $"Found {totalFiles} plugin(s), loading...";
+                ? $"Found {totalFiles} file(s), compiling..."
+                : $"Found {totalFiles} file(s), loading...";
             _logger?.Info(message);
 
             foreach (var info in compilationInfo)
@@ -135,7 +145,7 @@ public class PluginLoader
                     _logger?.Debug($"Loading {name} from cache");
                 }
 
-                return (LoadFromAssembly(File.ReadAllBytes(cachedDllPath)), false);
+                return (LoadFromAssembly<ICommand>(File.ReadAllBytes(cachedDllPath)), false);
             }
         }
 
@@ -154,7 +164,7 @@ public class PluginLoader
     /// Loads a plugin group (multiple .cs files) using cached DLL if available
     /// Returns tuple of (commands, wasCompiled)
     /// </summary>
-    private (List<ICommand> commands, bool wasCompiled) LoadPluginGroupWithCache(string groupDir, string[] csFiles, bool verboseLogging)
+    private (List<ICommandGroup> commandGroups, bool wasCompiled) LoadPluginGroupWithCache(string groupDir, string[] csFiles, bool verboseLogging)
     {
         var groupName = Path.GetFileName(groupDir);
         var cachedDllPath = Path.Combine(_cacheDirectory, $"{groupName}.dll");
@@ -176,7 +186,7 @@ public class PluginLoader
                     _logger?.Debug($"Loading {groupName} from cache");
                 }
 
-                return (LoadFromAssembly(File.ReadAllBytes(cachedDllPath), isGroup: true), false);
+                return (LoadFromAssembly<ICommandGroup>(File.ReadAllBytes(cachedDllPath), isGroup: true), false);
             }
         }
 
@@ -206,9 +216,9 @@ public class PluginLoader
     /// Uses duck-typing to find types with ExecuteAsync method and CommandAttribute
     /// </summary>
     /// <param name="isGroup">If true, only loads the command group (_Index class), not subcommands</param>
-    private List<ICommand> LoadFromAssembly(byte[] rawAssembly, bool isGroup = false)
+    private List<T> LoadFromAssembly<T>(byte[] rawAssembly, bool isGroup = false) where T : ICommand
     {
-        var commands = new List<ICommand>();
+        var commands = new List<T>();
 
         var assembly = LiveCode.AssemblyReference.Create(rawAssembly).Assembly;
 
@@ -249,7 +259,7 @@ public class PluginLoader
 
                 if (executeMethod != null)
                 {
-                    var instance = Activator.CreateInstance(type) as ICommand;
+                    var instance = (T) Activator.CreateInstance(type);
                     if (instance != null)
                     {
                         commands.Add(instance);
@@ -290,7 +300,7 @@ public class PluginLoader
             throw new InvalidOperationException($"Compilation failed:\n{compilerResult.error}");
         }
 
-        return LoadFromAssembly(File.ReadAllBytes(filePath));
+        return LoadFromAssembly<ICommand>(File.ReadAllBytes(filePath));
     }
 
     /// <summary>
@@ -299,7 +309,7 @@ public class PluginLoader
     /// Automatically injects required using statements if missing
     /// Combines all files into a single namespace
     /// </summary>
-    private List<ICommand> CompileAndLoadPluginGroup(string groupName, string outputPath, string[] csFiles)
+    private List<ICommandGroup> CompileAndLoadPluginGroup(string groupName, string outputPath, string[] csFiles)
     {
         var allUsings = new HashSet<string>();
         var allClassDefinitions = new List<string>();
@@ -403,7 +413,7 @@ public class PluginLoader
             throw new InvalidOperationException($"Compilation failed:\n{compilerResult.error}");
         }
 
-        return LoadFromAssembly(File.ReadAllBytes(outputPath), isGroup: true);
+        return LoadFromAssembly<ICommandGroup>(File.ReadAllBytes(outputPath), isGroup: true);
     }
 
     /// <summary>

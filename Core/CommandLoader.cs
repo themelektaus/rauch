@@ -1,4 +1,3 @@
-using Rauch.Commands.Standalone;
 using System.Reflection;
 
 namespace Rauch.Core;
@@ -17,14 +16,13 @@ public class CommandLoader
         var commands = new List<ICommand>();
         var assembly = Assembly.GetExecutingAssembly();
 
-        // Find all top-level commands: _Index (groups) and Standalone
+        // Find all top-level commands: _Index (groups) and Commands namespace
         var commandTypes = assembly.GetTypes()
             .Where(t => typeof(ICommand).IsAssignableFrom(t) &&
                        !t.IsInterface &&
                        !t.IsAbstract &&
                        t != typeof(Help) &&
-                       (t.Name == "_Index" || // Group commands
-                        t.Namespace == "Rauch.Commands.Standalone")) // Standalone commands
+                       (t.Name == "_Index" || t.Namespace == "Rauch.Commands"))
             .ToList();
 
         // Instantiate all commands (except Help)
