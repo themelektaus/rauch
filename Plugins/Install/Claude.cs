@@ -4,9 +4,8 @@ namespace Rauch.Plugins.Install;
 public class Claude : ICommand
 {
     const string PORTABLE_GIT_ZIP_URL = "https://cloud.it-guards.at/download/PortableGit.zip";
-    const string CLAUDE_INSTALL_SCRIPT_URL = "https://claude.ai/install.ps1";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
 
@@ -23,10 +22,10 @@ public class Claude : ICommand
             UpdateEnvironmentVariables(claudePath, claudeGitBashExe, logger);
 
             // Install Git Bash if needed
-            await InstallGitBash(claudeGitPath, claudeGitBashExe, logger, cancellationToken);
+            await InstallGitBash(claudeGitPath, claudeGitBashExe, logger, ct);
 
             // Install Claude if needed
-            await InstallClaude(claudePath, claudeExe, logger, cancellationToken);
+            await InstallClaude(claudePath, claudeExe, logger, ct);
 
             // Create project directory
             CreateProjectDirectory(claudeProjectPath, logger);
@@ -56,7 +55,7 @@ public class Claude : ICommand
         logger?.Info($"Set CLAUDE_CODE_GIT_BASH_PATH to {claudeGitBashExe}");
     }
 
-    private async Task InstallGitBash(string claudeGitPath, string claudeGitBashExe, ILogger logger, CancellationToken cancellationToken)
+    private async Task InstallGitBash(string claudeGitPath, string claudeGitBashExe, ILogger logger, CancellationToken ct)
     {
         if (File.Exists(claudeGitBashExe))
         {
@@ -76,10 +75,10 @@ public class Claude : ICommand
         try
         {
             // Download PortableGit.zip
-            await DownloadFile(PORTABLE_GIT_ZIP_URL, zipPath, cancellationToken, logger);
+            await DownloadFile(PORTABLE_GIT_ZIP_URL, zipPath, logger, ct);
 
             // Extract PortableGit.zip
-            await Unzip(zipPath, claudeGitPath, cancellationToken, logger);
+            await Unzip(zipPath, claudeGitPath, logger, ct);
 
             // Delete PortableGit.zip
             File.Delete(zipPath);
@@ -96,7 +95,7 @@ public class Claude : ICommand
         }
     }
 
-    private async Task InstallClaude(string claudePath, string claudeExe, ILogger logger, CancellationToken cancellationToken)
+    private async Task InstallClaude(string claudePath, string claudeExe, ILogger logger, CancellationToken ct)
     {
         if (File.Exists(claudeExe))
         {
@@ -104,66 +103,21 @@ public class Claude : ICommand
             return;
         }
 
-        logger?.Info("Installing Claude Code...");
+        logger?.Info("Downloading and executing Claude Code installation script...");
 
-        try
+        var exitCode = await ExecutePowershellCommand(
+            "https://claude.ai/install.ps1",
+            logger: logger,
+            ct: ct
+        );
+
+        if (exitCode == 0)
         {
-            // Download install script
-            var tempScriptPath = Path.GetTempFileName() + ".ps1";
-            await DownloadFile(CLAUDE_INSTALL_SCRIPT_URL, tempScriptPath, cancellationToken, logger);
-            using var httpClient = new HttpClient();
-            httpClient.Timeout = TimeSpan.FromMinutes(5);
-            var scriptContent = await httpClient.GetStringAsync(CLAUDE_INSTALL_SCRIPT_URL, cancellationToken);
-
-            // Execute PowerShell script
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                Arguments = $"-ExecutionPolicy Bypass -File \"{tempScriptPath}\"",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process != null)
-            {
-                var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
-                var error = await process.StandardError.ReadToEndAsync(cancellationToken);
-
-                await process.WaitForExitAsync(cancellationToken);
-
-                if (!string.IsNullOrWhiteSpace(output))
-                {
-                    logger?.Info(output.Trim());
-                }
-
-                if (!string.IsNullOrWhiteSpace(error))
-                {
-                    logger?.Warning(error.Trim());
-                }
-
-                if (process.ExitCode == 0)
-                {
-                    logger?.Success("Claude Code installed successfully");
-                }
-                else
-                {
-                    logger?.Error($"Claude installation script exited with code {process.ExitCode}");
-                }
-            }
-
-            // Cleanup temp script
-            if (File.Exists(tempScriptPath))
-            {
-                File.Delete(tempScriptPath);
-            }
+            logger?.Success("Claude Code installed successfully");
         }
-        catch (Exception ex)
+        else
         {
-            logger?.Error($"Failed to install Claude: {ex.Message}");
-            throw;
+            logger?.Error($"Claude installation script exited with code {exitCode}");
         }
     }
 

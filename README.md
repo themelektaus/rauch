@@ -91,7 +91,7 @@ Plugins are `.cs` files that are compiled at runtime using Roslyn:
 [Command("hello", "Greets the user")]
 public class HelloPlugin : ICommand
 {
-    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
         logger?.Success("Hello from plugin!");
@@ -111,14 +111,14 @@ public class MyTool : ICommand
     const string DOWNLOAD_URL = "https://example.com/mytool.exe";
     const string FILE_NAME = "mytool.exe";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
 
         try
         {
             SetWorkingDirectory("data", logger);
-            await DownloadFile(DOWNLOAD_URL, FILE_NAME, cancellationToken, logger);
+            await DownloadFile(DOWNLOAD_URL, FILE_NAME, logger, ct);
             await StartProcess(FILE_NAME, logger);
         }
         catch (Exception ex)
@@ -149,16 +149,16 @@ rauch/
 │   └── Network/          # Command group example
 │       ├── _Index.cs     # Group definition
 │       └── Ping.cs       # Subcommand
-├── Plugins/              # Runtime plugins (compiled at runtime)
-│   ├── .cache/          # Compiled plugin cache (auto-generated)
-│   ├── Install/         # Install command group
-│   └── Uninstall/       # Uninstall command group
-├── Core/                 # Core infrastructure
+├── Plugins/               # Runtime plugins (compiled at runtime)
+│   ├── .cache/           # Compiled plugin cache (auto-generated)
+│   ├── Install/          # Install command group
+│   └── Uninstall/        # Uninstall command group
+├── Core/                  # Core infrastructure
 │   ├── CommandLoader.cs  # Command discovery system
 │   ├── PluginLoader.cs   # Runtime plugin compilation
 │   ├── CommandUtils.cs   # Utility methods for plugins
 │   └── Attributes/       # Validation and metadata attributes
-└── CLAUDE.md            # Detailed developer documentation
+└── CLAUDE.md              # Detailed developer documentation
 ```
 
 ## Development
@@ -178,7 +178,7 @@ namespace Rauch.Commands;
 [MinArguments(1)]
 public class MyCommand : ICommand
 {
-    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
         logger?.Info("Processing command...");

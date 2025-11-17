@@ -69,7 +69,7 @@ namespace Rauch.Commands;
 [NumericArguments]
 public class Sum : ICommand
 {
-    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         // Implementation
     }
@@ -112,7 +112,7 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 **ServiceContainer** (`Core/ServiceContainer.cs`):
 - Lightweight DI container supporting singletons and factories
 - Configured in `Program.cs` `Main` method
-- Passed to all commands via `ExecuteAsync(args, services, cancellationToken)`
+- Passed to all commands via `ExecuteAsync(args, services, ct)`
 - Access services with `services.GetService<TService>()`
 
 ### Logging System
@@ -165,7 +165,7 @@ Plugins/
 [Command("hello", "Greets the user")]
 public class HelloPlugin : ICommand
 {
-    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
         logger?.Success("Hello from plugin!");
@@ -188,7 +188,7 @@ namespace Rauch.Plugins;
 [Command("hello", "Greets the user", Parameters = "[name]")]
 public class HelloPlugin : ICommand
 {
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
         var name = args.Length > 0 ? args[0] : "World";
@@ -291,7 +291,7 @@ namespace Rauch.Commands;
 [MinArguments(1)]
 public class MyCommand : ICommand
 {
-    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
         logger?.Info("Processing command...");
@@ -418,8 +418,8 @@ Hidden commands execute normally but don't appear in help output.
 7. **Namespace**: Commands in `Rauch.Commands`, groups in `Rauch.Commands.<GroupName>`, plugins in `Rauch.Plugins.<GroupName>`
 8. **Utility Methods**: Use `CommandUtils` static methods in plugins (available via `using static Rauch.Core.CommandUtils`):
    - `SetWorkingDirectory(path, logger)`: Create and set working directory
-   - `DownloadFile(url, filePath, ct, logger)`: Download file with progress
-   - `Unzip(zipPath, destinationPath, ct, logger)`: Extract ZIP archive
+   - `DownloadFile(url, filePath, logger, ct)`: Download file with progress
+   - `Unzip(zipPath, destinationPath, logger, ct)`: Extract ZIP archive
    - `StartProcess(filePath, logger)`: Launch executable
 
 ## Plugin Examples
@@ -434,14 +434,14 @@ public class MyTool : ICommand
     const string DOWNLOAD_URL = "https://example.com/mytool.exe";
     const string FILE_NAME = "mytool.exe";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
 
         try
         {
             SetWorkingDirectory("data", logger);
-            await DownloadFile(DOWNLOAD_URL, FILE_NAME, cancellationToken, logger);
+            await DownloadFile(DOWNLOAD_URL, FILE_NAME, logger, ct);
             StartProcess(FILE_NAME, logger);
         }
         catch (Exception ex)
@@ -471,8 +471,8 @@ public class PortableApp : ICommand
             SetWorkingDirectory(INSTALL_DIR, logger);
 
             var zipPath = Path.Combine(INSTALL_DIR, "app.zip");
-            await DownloadFile(ZIP_URL, zipPath, ct, logger);
-            await Unzip(zipPath, INSTALL_DIR, ct, logger);
+            await DownloadFile(ZIP_URL, zipPath, logger, ct);
+            await Unzip(zipPath, INSTALL_DIR, logger, ct);
             File.Delete(zipPath);
 
             var exePath = Path.Combine(INSTALL_DIR, "app.exe");
@@ -481,6 +481,58 @@ public class PortableApp : ICommand
         catch (Exception ex)
         {
             logger?.Error($"Failed: {ex.Message}");
+        }
+    }
+}
+```
+
+### Example 3: Plugin with Remote PowerShell Script Execution
+```csharp
+namespace Rauch.Plugins.Install;
+
+[Command("teams", "Install Microsoft Teams via remote PowerShell script")]
+public class Teams : ICommand
+{
+    const string SCRIPT_URL = "https://raw.githubusercontent.com/mohammedha/Posh/refs/heads/main/O365/Teams/Install_TeamsV2.0.ps1";
+
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    {
+        var logger = services.GetService<ILogger>();
+
+        try
+        {
+            logger?.Info("Downloading and executing Teams installation script...");
+
+            // Execute remote PowerShell script
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"irm '{SCRIPT_URL}' | iex\"",
+                UseShellExecute = false,
+                CreateNoWindow = false
+            };
+
+            using var process = Process.Start(startInfo);
+            if (process == null)
+            {
+                logger?.Error("Failed to start PowerShell process");
+                return;
+            }
+
+            await process.WaitForExitAsync(ct);
+
+            if (process.ExitCode == 0)
+            {
+                logger?.Success("Teams installation completed successfully");
+            }
+            else
+            {
+                logger?.Error($"Teams installation failed with exit code {process.ExitCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.Error($"Failed to install Teams: {ex.Message}");
         }
     }
 }

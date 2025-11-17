@@ -10,11 +10,12 @@ public class Help : ICommand
         _availableCommands = availableCommands;
     }
 
-    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
 
-        logger?.WriteLine("rauch - Command Line Tool");
+        logger?.WriteLine("");
+        logger?.Info(" >_ rauch");
         logger?.WriteLine("");
 
         // Separate commands into groups and individual commands

@@ -21,7 +21,7 @@ public class CSharpCompiler
 
         var compilation = CSharpCompilation.Create(
             assemblyName,
-            [ syntaxTree ],
+            [syntaxTree],
             references: GetReferences(),
             options: new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,

@@ -10,7 +10,7 @@ public class Update : ICommand
     private const string GitHubRawPluginBase = "https://raw.githubusercontent.com/themelektaus/rauch/main/Plugins/";
     private const string TempFileName = "rauch.exe.new";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
 
@@ -36,26 +36,26 @@ public class Update : ICommand
             logger?.Info($"Downloading latest rauch.exe from GitHub...");
             logger?.Debug($"URL: {GitHubRawUrl}");
 
-            var response = await httpClient.GetAsync(GitHubRawUrl, cancellationToken);
+            var response = await httpClient.GetAsync(GitHubRawUrl, ct);
 
             if (!response.IsSuccessStatusCode)
             {
-                logger?.Error($"Failed to download update: HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
+                logger?.Error($"Failed to download update: HTTP {(int) response.StatusCode} {response.ReasonPhrase}");
                 return;
             }
 
-            var newFileBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            var newFileBytes = await response.Content.ReadAsByteArrayAsync(ct);
 
             logger?.Info($"Downloaded rauch.exe ({newFileBytes.Length:N0} bytes)");
             logger?.Warning("Note: Update will always be applied. Version checking not yet implemented.");
 
             // Save to temp file
-            await File.WriteAllBytesAsync(tempFilePath, newFileBytes, cancellationToken);
+            await File.WriteAllBytesAsync(tempFilePath, newFileBytes, ct);
             logger?.Debug($"Saved to: {tempFilePath}");
 
             // Step 2: Download plugin files
             logger?.Info("Downloading plugin files from GitHub...");
-            var pluginFiles = await DownloadPluginFiles(httpClient, pluginsDir, logger, cancellationToken);
+            var pluginFiles = await DownloadPluginFiles(httpClient, pluginsDir, logger, ct);
 
             if (pluginFiles.Count > 0)
             {
@@ -77,7 +77,7 @@ start """" ""{currentExePath}"" help
 exit
 ";
 
-            await File.WriteAllTextAsync(scriptPath, script, cancellationToken);
+            await File.WriteAllTextAsync(scriptPath, script, ct);
 
             logger?.Success("Update downloaded successfully!");
             logger?.Warning("Restarting application to apply update...");
@@ -107,7 +107,7 @@ exit
         }
     }
 
-    private async Task<List<string>> DownloadPluginFiles(HttpClient httpClient, string pluginsDir, ILogger logger, CancellationToken cancellationToken)
+    private async Task<List<string>> DownloadPluginFiles(HttpClient httpClient, string pluginsDir, ILogger logger, CancellationToken ct)
     {
         var downloadedFiles = new List<string>();
 
@@ -121,15 +121,15 @@ exit
 
             // Get list of files from GitHub API
             logger?.Debug($"Fetching plugin list from: {GitHubApiUrl}");
-            var response = await httpClient.GetAsync(GitHubApiUrl, cancellationToken);
+            var response = await httpClient.GetAsync(GitHubApiUrl, ct);
 
             if (!response.IsSuccessStatusCode)
             {
-                logger?.Warning($"Failed to fetch plugin list: HTTP {(int)response.StatusCode}");
+                logger?.Warning($"Failed to fetch plugin list: HTTP {(int) response.StatusCode}");
                 return downloadedFiles;
             }
 
-            var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            var jsonContent = await response.Content.ReadAsStringAsync(ct);
 
             var options = new JsonSerializerOptions
             {
@@ -151,20 +151,20 @@ exit
                 {
                     logger?.Debug($"Downloading plugin: {file.Name}");
                     var downloadUrl = $"{GitHubRawPluginBase}{file.Name}";
-                    var fileResponse = await httpClient.GetAsync(downloadUrl, cancellationToken);
+                    var fileResponse = await httpClient.GetAsync(downloadUrl, ct);
 
                     if (fileResponse.IsSuccessStatusCode)
                     {
-                        var content = await fileResponse.Content.ReadAsStringAsync(cancellationToken);
+                        var content = await fileResponse.Content.ReadAsStringAsync(ct);
                         var targetPath = Path.Combine(pluginsDir, file.Name);
 
-                        await File.WriteAllTextAsync(targetPath, content, cancellationToken);
+                        await File.WriteAllTextAsync(targetPath, content, ct);
                         downloadedFiles.Add(file.Name);
                         logger?.Debug($"  ✓ {file.Name}");
                     }
                     else
                     {
-                        logger?.Warning($"  ✗ Failed to download {file.Name}: HTTP {(int)fileResponse.StatusCode}");
+                        logger?.Warning($"  ✗ Failed to download {file.Name}: HTTP {(int) fileResponse.StatusCode}");
                     }
                 }
                 catch (Exception ex)
@@ -189,15 +189,15 @@ exit
 
                     // Fetch contents of subdirectory
                     var subDirUrl = $"{GitHubApiUrl}/{dir.Name}";
-                    var subDirResponse = await httpClient.GetAsync(subDirUrl, cancellationToken);
+                    var subDirResponse = await httpClient.GetAsync(subDirUrl, ct);
 
                     if (!subDirResponse.IsSuccessStatusCode)
                     {
-                        logger?.Warning($"  ✗ Failed to fetch {dir.Name}: HTTP {(int)subDirResponse.StatusCode}");
+                        logger?.Warning($"  ✗ Failed to fetch {dir.Name}: HTTP {(int) subDirResponse.StatusCode}");
                         continue;
                     }
 
-                    var subDirJson = await subDirResponse.Content.ReadAsStringAsync(cancellationToken);
+                    var subDirJson = await subDirResponse.Content.ReadAsStringAsync(ct);
                     var subDirFiles = JsonSerializer.Deserialize<List<GitHubFile>>(subDirJson, options);
 
                     if (subDirFiles == null || subDirFiles.Count == 0)
@@ -213,20 +213,20 @@ exit
                         {
                             logger?.Debug($"  Downloading: {dir.Name}/{file.Name}");
                             var downloadUrl = $"{GitHubRawPluginBase}{dir.Name}/{file.Name}";
-                            var fileResponse = await httpClient.GetAsync(downloadUrl, cancellationToken);
+                            var fileResponse = await httpClient.GetAsync(downloadUrl, ct);
 
                             if (fileResponse.IsSuccessStatusCode)
                             {
-                                var content = await fileResponse.Content.ReadAsStringAsync(cancellationToken);
+                                var content = await fileResponse.Content.ReadAsStringAsync(ct);
                                 var targetPath = Path.Combine(subDirPath, file.Name);
 
-                                await File.WriteAllTextAsync(targetPath, content, cancellationToken);
+                                await File.WriteAllTextAsync(targetPath, content, ct);
                                 downloadedFiles.Add($"{dir.Name}/{file.Name}");
                                 logger?.Debug($"    ✓ {dir.Name}/{file.Name}");
                             }
                             else
                             {
-                                logger?.Warning($"    ✗ Failed to download {dir.Name}/{file.Name}: HTTP {(int)fileResponse.StatusCode}");
+                                logger?.Warning($"    ✗ Failed to download {dir.Name}/{file.Name}: HTTP {(int) fileResponse.StatusCode}");
                             }
                         }
                         catch (Exception ex)

@@ -7,7 +7,7 @@ public class Cwa : ICommand
     const string AGENT_UNINSTALLER_URL = "https://s3.amazonaws.com/assets-cp/assets/Agent_Uninstaller.zip";
     const string INSTALL_DIR = @"data\CWA";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
 
@@ -22,13 +22,13 @@ public class Cwa : ICommand
             SetWorkingDirectory(INSTALL_DIR, logger);
 
             // Download and run LT Agent uninstaller
-            await DownloadAndRunLTAgentUninstaller(logger, cancellationToken);
+            await DownloadAndRunLTAgentUninstaller(logger, ct);
 
             // Uninstall ScreenConnect Client via WMIC
-            await UninstallScreenConnectClient(logger, cancellationToken);
+            await UninstallScreenConnectClient(logger, ct);
 
             // Download and run CWA uninstaller
-            await DownloadAndRunCWAUninstaller(logger, cancellationToken);
+            await DownloadAndRunCWAUninstaller(logger, ct);
 
             logger?.Success("ConnectWise Automate uninstallers completed successfully.");
         }
@@ -38,7 +38,7 @@ public class Cwa : ICommand
         }
     }
 
-    async Task DownloadAndRunLTAgentUninstaller(ILogger logger, CancellationToken cancellationToken)
+    async Task DownloadAndRunLTAgentUninstaller(ILogger logger, CancellationToken ct)
     {
         var zipPath = "Agent_Uninstaller.zip";
         var uninstallerExe = "Agent_Uninstall.exe";
@@ -46,13 +46,13 @@ public class Cwa : ICommand
         try
         {
             // Download Agent Uninstaller ZIP
-            await DownloadFile(AGENT_UNINSTALLER_URL, zipPath, cancellationToken, logger);
+            await DownloadFile(AGENT_UNINSTALLER_URL, zipPath, logger, ct);
 
             // Extract ZIP
-            await Unzip(zipPath, ".", cancellationToken, logger);
+            await Unzip(zipPath, ".", logger, ct);
 
             // Start LT Agent Uninstaller
-            await StartProcess(uninstallerExe, logger);
+            await StartProcess(uninstallerExe, logger, ct);
 
             // Cleanup ZIP file
             File.Delete(zipPath);
@@ -72,18 +72,18 @@ public class Cwa : ICommand
         }
     }
 
-    async Task DownloadAndRunCWAUninstaller(ILogger logger, CancellationToken cancellationToken)
+    async Task DownloadAndRunCWAUninstaller(ILogger logger, CancellationToken ct)
     {
         var cwaUninstallExe = "cwa-uninstall.exe";
-        
+
         // Download CWA uninstaller
-        await DownloadFile(CWA_UNINSTALL_URL, cwaUninstallExe, cancellationToken, logger);
+        await DownloadFile(CWA_UNINSTALL_URL, cwaUninstallExe, logger, ct);
 
         // Start CWA uninstaller
         await StartProcess(cwaUninstallExe, logger);
     }
 
-    async Task UninstallScreenConnectClient(ILogger logger, CancellationToken cancellationToken)
+    async Task UninstallScreenConnectClient(ILogger logger, CancellationToken ct)
     {
         logger?.Info("Uninstalling ScreenConnect Client via WMIC...");
 
@@ -100,12 +100,12 @@ public class Cwa : ICommand
             };
 
             using var process = Process.Start(startInfo);
-            if (process != null)
+            if (process is not null)
             {
-                var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
-                var error = await process.StandardError.ReadToEndAsync(cancellationToken);
+                var output = await process.StandardOutput.ReadToEndAsync(ct);
+                var error = await process.StandardError.ReadToEndAsync(ct);
 
-                await process.WaitForExitAsync(cancellationToken);
+                await process.WaitForExitAsync(ct);
 
                 if (!string.IsNullOrWhiteSpace(output))
                 {

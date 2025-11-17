@@ -7,7 +7,7 @@ public class Everything : ICommand
     const string DATA_DIRECTORY = "data";
     const string FILE = "everything.exe";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
 
@@ -17,7 +17,7 @@ public class Everything : ICommand
             SetWorkingDirectory(DATA_DIRECTORY, logger);
 
             // Download the file if it doesn't exist
-            await DownloadFile(DOWNLOAD_URL, FILE, cancellationToken, logger);
+            await DownloadFile(DOWNLOAD_URL, FILE, logger, ct);
 
             // Start the process
             StartProcess(FILE, logger);

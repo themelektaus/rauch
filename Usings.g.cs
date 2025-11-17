@@ -8,7 +8,6 @@ internal static class Usings
         "Rauch.Commands",
         "Rauch.Core",
         "Rauch.Core.Attributes",
-        "static Rauch.Core.CommandUtils",
         "System",
         "System.Collections.Generic",
         "System.Diagnostics",
@@ -18,6 +17,7 @@ internal static class Usings
         "System.Net.Http",
         "System.Text",
         "System.Threading",
-        "System.Threading.Tasks"
+        "System.Threading.Tasks",
+        "static Rauch.Core.CommandUtils"
     };
 }

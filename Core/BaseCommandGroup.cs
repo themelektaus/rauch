@@ -16,7 +16,7 @@ public abstract class BaseCommandGroup : ICommandGroup
         _subCommands = LoadSubCommands();
     }
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken cancellationToken = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
 
@@ -43,7 +43,7 @@ public abstract class BaseCommandGroup : ICommandGroup
                 return;
             }
 
-            await subCommand.ExecuteAsync(subCommandArgs, services, cancellationToken);
+            await subCommand.ExecuteAsync(subCommandArgs, services, ct);
         }
         else
         {
