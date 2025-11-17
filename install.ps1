@@ -45,4 +45,5 @@ else
 Write-Host ""
 
 # Launch rauch
-cmd /k rauch.exe
+cmd /c rauch update
+cmd /k rauch
