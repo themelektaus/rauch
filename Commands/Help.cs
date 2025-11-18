@@ -10,68 +10,84 @@ public class Help : ICommand
         _availableCommands = availableCommands;
     }
 
+    public class GroupInfo
+    {
+        public string name;
+        public string description;
+        public Dictionary<string, CommandInfo> commands;
+    }
+
+    public class CommandInfo
+    {
+        public string name;
+        public string description;
+        public string type;
+    }
+
     public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
-        var logger = services.GetService<ILogger>();
+        var groups = new Dictionary<string, GroupInfo>();
 
-        logger?.WriteLine("");
-        logger?.Info(" >_ rauch");
-        logger?.WriteLine("");
-
-        // Separate commands into groups and individual commands
-        var groups = _availableCommands.OfType<ICommandGroup>()
-            .Where(c => !CommandMetadata.IsHidden(c))
-            .OrderBy(c => CommandMetadata.GetName(c))
-            .ToList();
-
-        var individualCommands = _availableCommands
-            .Where(c => c is not ICommandGroup &&
-                       CommandMetadata.GetName(c) != "help" &&
-                       !CommandMetadata.IsHidden(c))
-            .OrderBy(c => CommandMetadata.GetName(c))
-            .ToList();
-
-        // Show groups with their subcommands
-        if (groups.Any())
+        foreach (var group in _availableCommands.OfType<ICommandGroup>().Where(c => !CommandMetadata.IsHidden(c)))
         {
-            logger?.WriteLine("Command groups:");
-            foreach (var group in groups)
-            {
-                var groupName = CommandMetadata.GetName(group);
-                var groupDesc = CommandMetadata.GetDescription(group);
-                logger?.WriteLine($"  {groupName,-15} {groupDesc}");
+            var name = CommandMetadata.GetName(group);
+            var description = CommandMetadata.GetDescription(group);
 
-                foreach (var subCmd in group.SubCommands
-                    .Where(s => !CommandMetadata.IsHidden(s))
-                    .OrderBy(s => CommandMetadata.GetName(s)))
+            if (!groups.TryGetValue(name, out var groupInfo))
+            {
+                groupInfo = new()
                 {
-                    var subName = CommandMetadata.GetName(subCmd);
-                    var subDesc = CommandMetadata.GetDescription(subCmd);
-                    logger?.WriteLine($"    └─ {subName,-13} {subDesc}");
-                }
-                logger?.WriteLine("");
+                    name = name,
+                    description = description,
+                    commands = []
+                };
+                groups.Add(name, groupInfo);
+            }
+
+            foreach (var command in group.SubCommands)
+            {
+                name = CommandMetadata.GetName(command);
+                groupInfo.commands.Add(name, new()
+                {
+                    name = name,
+                    description = CommandMetadata.GetDescription(command),
+                    type = command.GetType().Namespace.Contains(".Plugins.") ? "Plugin" : "Core"
+                });
             }
         }
 
-        // Show individual commands
-        if (individualCommands.Any())
-        {
-            logger?.WriteLine("Commands:");
-            foreach (var command in individualCommands)
-            {
-                var usage = CommandMetadata.GetUsage(command);
-                var desc = CommandMetadata.GetDescription(command);
+        var logger = services.GetService<ILogger>();
 
-                logger?.WriteLine($"  {usage,-25} {desc}");
+        logger?.WriteLine("");
+        logger?.Write(" >_ ", ConsoleColor.DarkCyan);
+        logger?.WriteLine("rauch", ConsoleColor.Cyan);
+        logger?.WriteLine("");
+
+        foreach (var group in groups.Values.OrderBy(x => x.name))
+        {
+            logger?.Write($"  {group.name,-15}", ConsoleColor.Yellow);
+            logger?.Write(group.description);
+            logger?.WriteLine("");
+
+            foreach (var command in group.commands.Values.OrderBy(x => x.name))
+            {
+                logger?.Write($"    └─ ");
+                logger?.Write($"{command.name,-13} ", ConsoleColor.DarkYellow);
+                logger?.Write($"{command.type,-10}", ConsoleColor.DarkGray);
+                logger?.Write(command.description);
+                logger?.WriteLine("");
             }
             logger?.WriteLine("");
         }
 
-        // Show help command separately
-        logger?.WriteLine("Help:");
-        var helpUsage = CommandMetadata.GetUsage(this);
-        var helpDesc = CommandMetadata.GetDescription(this);
-        logger?.WriteLine($"  {helpUsage,-25} {helpDesc}");
+        foreach (var command in _availableCommands.Where(c => c is not ICommandGroup && !CommandMetadata.IsHidden(c)).OrderBy(c => CommandMetadata.GetName(c)))
+        {
+            var usage = CommandMetadata.GetUsage(command);
+            var desc = CommandMetadata.GetDescription(command);
+            logger?.Write($"  {usage[6..],-15}", ConsoleColor.Yellow);
+            logger?.WriteLine(desc);
+            logger?.WriteLine("");
+        }
 
         return Task.CompletedTask;
     }

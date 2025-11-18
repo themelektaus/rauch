@@ -5,7 +5,7 @@ namespace Rauch.Core;
 /// </summary>
 public class ConsoleLogger : ILogger
 {
-    private readonly bool _enableColors;
+    readonly bool _enableColors;
 
     public ConsoleLogger(bool enableColors = true)
     {
@@ -14,40 +14,75 @@ public class ConsoleLogger : ILogger
 
     public void Info(string message)
     {
-        WriteColored(message, ConsoleColor.Cyan);
+        WriteLineColored(message, ConsoleColor.Cyan);
     }
 
     public void Success(string message)
     {
-        WriteColored(message, ConsoleColor.Green);
+        WriteLineColored(message, ConsoleColor.Green);
     }
 
     public void Warning(string message)
     {
-        WriteColored(message, ConsoleColor.Yellow);
+        WriteLineColored(message, ConsoleColor.Yellow);
     }
 
     public void Error(string message)
     {
-        WriteColored(message, ConsoleColor.Red);
+        WriteLineColored(message, ConsoleColor.Red);
     }
 
     public void Debug(string message)
     {
-        WriteColored(message, ConsoleColor.DarkGray);
+        WriteLineColored(message, ConsoleColor.DarkGray);
     }
 
-    public void Write(string message)
+    public void Write(string message, ConsoleColor? color = null)
     {
-        Console.Write(message);
+        if (color.HasValue)
+        {
+            WriteColored(message, color.Value);
+        }
+        else
+        {
+            Console.Write(message);
+        }
     }
 
-    public void WriteLine(string message)
+    public void WriteLine(string message, ConsoleColor? color = null)
     {
-        Console.WriteLine(message);
+        if (color.HasValue)
+        {
+            WriteLineColored(message, color.Value);
+        }
+        else
+        {
+            Console.WriteLine(message);
+        }
     }
 
-    private void WriteColored(string message, ConsoleColor color)
+    void WriteColored(string message, ConsoleColor color)
+    {
+        if (_enableColors)
+        {
+            var previousColor = Console.ForegroundColor;
+            try
+            {
+                Console.ForegroundColor = color;
+                Console.Write(message);
+            }
+            finally
+            {
+                Console.ForegroundColor = previousColor;
+            }
+        }
+        else
+        {
+            Console.WriteLine(message);
+        }
+    }
+
+    void WriteLineColored(string message, ConsoleColor color)
     {
         if (_enableColors)
         {

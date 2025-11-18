@@ -33,10 +33,10 @@ public interface ILogger
     /// <summary>
     /// Writes a message without additional formatting
     /// </summary>
-    void Write(string message);
+    void Write(string message, ConsoleColor? color = null);
 
     /// <summary>
     /// Writes a line without additional formatting
     /// </summary>
-    void WriteLine(string message);
+    void WriteLine(string message, ConsoleColor? color = null);
 }

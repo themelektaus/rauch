@@ -7,6 +7,7 @@ public class Cwa : ICommand
     const string AGENT_UNINSTALLER_URL = "https://s3.amazonaws.com/assets-cp/assets/Agent_Uninstaller.zip";
     const string INSTALL_DIR = @"data\CWA";
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
@@ -52,7 +53,7 @@ public class Cwa : ICommand
             await Unzip(zipPath, ".", logger, ct);
 
             // Start LT Agent Uninstaller
-            await StartProcess(uninstallerExe, logger, ct);
+            await StartProcess(uninstallerExe, logger: logger, ct: ct);
 
             // Cleanup ZIP file
             File.Delete(zipPath);
@@ -80,7 +81,7 @@ public class Cwa : ICommand
         await DownloadFile(CWA_UNINSTALL_URL, cwaUninstallExe, logger, ct);
 
         // Start CWA uninstaller
-        await StartProcess(cwaUninstallExe, logger);
+        await StartProcess(cwaUninstallExe, logger: logger, ct: ct);
     }
 
     async Task UninstallScreenConnectClient(ILogger logger, CancellationToken ct)

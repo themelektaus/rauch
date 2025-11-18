@@ -9,13 +9,8 @@ public class Teams : ICommand
 
         logger?.Info("Downloading and executing Teams installation script...");
 
-        var exitCode = await ExecutePowershellCommand(
-            $"irm 'https://raw.githubusercontent.com/mohammedha/Posh/refs/heads/main/O365/Teams/Install_TeamsV2.0.ps1' | iex",
-            noWindow: false,
-            noProfile: true,
-            logger,
-            ct
-        );
+        var command = $"irm 'https://raw.githubusercontent.com/mohammedha/Posh/refs/heads/main/O365/Teams/Install_TeamsV2.0.ps1' | iex";
+        var exitCode = await ExecutePowershellCommand(command, CommandFlags.NoProfile, logger, ct);
 
         if (exitCode == 0)
         {

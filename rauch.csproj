@@ -5,19 +5,24 @@
     <TargetFramework>net10.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Logo.ico</ApplicationIcon>
+      
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" />
   </ItemGroup>
 
-  <!-- -->
+  <!-- Embed PowerShell scripts as resources -->
   <ItemGroup>
+    <EmbeddedResource Include="Commands\**\*.ps1" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' != 'Debug'">
     <Compile Remove="Plugins\**" />
     <EmbeddedResource Remove="Plugins\**" />
     <None Include="Plugins\**\*.cs" CopyToOutputDirectory="Always" />
+    <None Include="Plugins\**\*.ps1" CopyToOutputDirectory="Always" />
   </ItemGroup>
-  <!-- -->
 
   <ItemGroup>
     <None Remove="Build\**" />

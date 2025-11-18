@@ -14,23 +14,6 @@ public static class CommandUtils
         logger?.Info($"Working directory: {path}");
     }
 
-    public static async Task StartProcess(string filePath, ILogger logger = null, CancellationToken ct = default)
-    {
-        logger?.Info($"Starting {Path.GetFileName(filePath)}...");
-
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = filePath,
-            UseShellExecute = true
-        };
-
-        var process = Process.Start(startInfo);
-
-        logger?.Success($"{Path.GetFileName(filePath)} started successfully.");
-
-        await process.WaitForExitAsync(ct);
-    }
-
     public static async Task DownloadFile(string url, string filePath, ILogger logger = null, CancellationToken ct = default)
     {
         var fileName = Path.GetFileName(filePath);
@@ -112,71 +95,99 @@ public static class CommandUtils
         return false;
     }
 
-    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
-    public static async Task<int> ExecutePowershellCommand(
-        string command,
-        bool noWindow = true,
-        bool noProfile = false,
-        ILogger logger = null,
-        CancellationToken ct = default
-    )
+    [Flags]
+    public enum CommandFlags
+    {
+        None = 0,
+        NoProfile = 1,
+        UseShellExecute = 2,
+        CreateNoWindow = 4
+    }
+
+    public static Task<int> ExecutePowershellCommand(string command, CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
+    {
+        return ExecutePowershellInternal($"-Command \"{command.Replace("\"", "\\\"")}\"", flags, logger, ct);
+    }
+
+    public static Task<int> ExecutePowershellFile(string file, string arguments = "", CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
+    {
+        return ExecutePowershellInternal($"-File \"{file}\" {arguments}", flags, logger, ct);
+    }
+
+    public static async Task<int> ExecutePowershellFile<T>(string arguments = "", CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
+    {
+        var t = typeof(T);
+        var n = t.Namespace;
+        n = n[0].ToString().ToLowerInvariant() + n[1..];
+
+        var name = $"{n}.{t.Name}.ps1";
+
+        using var stream = t.Assembly.GetManifestResourceStream(name);
+
+        if (stream is null)
+        {
+            logger?.Error($"Failed to load embedded resource: {name}");
+            return -3;
+        }
+
+        using var reader = new StreamReader(stream);
+        var scriptContent = await reader.ReadToEndAsync(ct);
+
+        var tempScriptPath = Path.Combine(Path.GetTempFileName() + ".ps1");
+        await File.WriteAllTextAsync(tempScriptPath, scriptContent, ct);
+
+        var exitCode = await ExecutePowershellInternal($"-File \"{tempScriptPath}\" {arguments}", flags, logger, ct);
+
+        try { File.Delete(tempScriptPath); } catch { }
+
+        return exitCode;
+    }
+
+    static async Task<int> ExecutePowershellInternal(string arguments, CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
+    {
+        return await StartProcess(
+            "powershell.exe",
+            $"{(flags.HasFlag(CommandFlags.NoProfile) ? "-NoProfile" : "")} -ExecutionPolicy Bypass {arguments}",
+            flags,
+            logger,
+            ct
+        );
+    }
+
+    public static async Task<int> StartProcess(string filePath, string arguments = "", CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
     {
         try
         {
+            var name = Path.GetFileNameWithoutExtension(filePath);
+
+            logger?.Info($"Starting {name} ...");
+
             var startInfo = new ProcessStartInfo
             {
-                FileName = "powershell.exe",
-                Arguments = $"{(noProfile ? "" : "-NoProfile")} -ExecutionPolicy Bypass -Command \"{command.Replace("\"", "\\\"")}\"",
-                UseShellExecute = false,
-                RedirectStandardOutput = noWindow,
-                RedirectStandardError = noWindow,
-                CreateNoWindow = noWindow
+                FileName = filePath,
+                Arguments = arguments,
+                UseShellExecute = flags.HasFlag(CommandFlags.UseShellExecute),
+                CreateNoWindow = flags.HasFlag(CommandFlags.CreateNoWindow)
             };
 
-            using var process = Process.Start(startInfo);
+            var process = Process.Start(startInfo);
 
             if (process is null)
             {
-                logger?.Error("Failed to start PowerShell process");
+                logger?.Error($"Failed to start {name}");
                 return -2;
             }
 
-            string output;
-            string error;
-
-            if (noWindow)
-            {
-                output = await process.StandardOutput.ReadToEndAsync(ct);
-                error = await process.StandardError.ReadToEndAsync(ct);
-            }
-            else
-            {
-                output = null;
-                error = null;
-            }
+            logger?.Success($"{Path.GetFileName(filePath)} started successfully.");
 
             await process.WaitForExitAsync(ct);
-
-            if (noWindow && (output is not null || error is not null))
-            {
-                if (!string.IsNullOrWhiteSpace(output))
-                {
-                    logger?.Info(output.Trim());
-                }
-
-                if (!string.IsNullOrWhiteSpace(error))
-                {
-                    logger?.Warning(error.Trim());
-                }
-            }
 
             return process.ExitCode;
         }
         catch (Exception ex)
         {
             logger?.Error($"Failed: {ex.Message}");
+            return -1;
         }
-
-        return -1;
     }
 }

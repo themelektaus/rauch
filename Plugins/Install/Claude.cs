@@ -34,7 +34,7 @@ public class Claude : ICommand
             logger?.Info($"Project directory: {claudeProjectPath}");
 
             // Start the process
-            StartProcess(claudeExe, logger);
+            _ = StartProcess(claudeExe, flags: CommandFlags.UseShellExecute, logger: logger);
         }
         catch (Exception ex)
         {
@@ -105,11 +105,7 @@ public class Claude : ICommand
 
         logger?.Info("Downloading and executing Claude Code installation script...");
 
-        var exitCode = await ExecutePowershellCommand(
-            "https://claude.ai/install.ps1",
-            logger: logger,
-            ct: ct
-        );
+        var exitCode = await ExecutePowershellCommand("https://claude.ai/install.ps1", logger: logger, ct: ct);
 
         if (exitCode == 0)
         {

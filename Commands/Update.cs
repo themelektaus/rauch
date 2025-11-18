@@ -144,12 +144,12 @@ exit
                 return downloadedFiles;
             }
 
-            // Download root-level .cs files
-            foreach (var file in items.Where(f => f.Type == "file" && f.Name.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)))
+            // Download root-level .cs and .ps1 files
+            foreach (var file in items.Where(f => f.Type == "file" && (f.Name.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || f.Name.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))))
             {
                 try
                 {
-                    logger?.Debug($"Downloading plugin: {file.Name}");
+                    logger?.Debug($"Downloading: {file.Name}");
                     var downloadUrl = $"{GitHubRawPluginBase}{file.Name}";
                     var fileResponse = await httpClient.GetAsync(downloadUrl, ct);
 
@@ -206,8 +206,8 @@ exit
                         continue;
                     }
 
-                    // Download .cs files from subdirectory
-                    foreach (var file in subDirFiles.Where(f => f.Type == "file" && f.Name.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)))
+                    // Download .cs and .ps1 files from subdirectory
+                    foreach (var file in subDirFiles.Where(f => f.Type == "file" && (f.Name.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || f.Name.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))))
                     {
                         try
                         {
