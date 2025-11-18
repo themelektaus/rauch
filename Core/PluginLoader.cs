@@ -319,7 +319,7 @@ public class PluginLoader
         foreach (var csFile in csFiles)
         {
             var source = File.ReadAllText(csFile);
-            var lines = source.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            var lines = source.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
 
             var usings = new List<string>();
             var classContent = new List<string>();

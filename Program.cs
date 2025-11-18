@@ -18,7 +18,7 @@ var commands = CommandLoader.LoadCommands(logger, verbosePluginLogging: showingH
 if (showingHelp)
 {
     var helpCommand = CommandLoader.FindCommand(commands, "help");
-    if (helpCommand != null)
+    if (helpCommand is not null)
     {
         await helpCommand.ExecuteAsync([], services);
     }
@@ -28,7 +28,12 @@ if (showingHelp)
 // Find the matching command
 var command = CommandLoader.FindCommand(commands, args[0]);
 
-if (command != null)
+if (command is null)
+{
+    logger.Error($"Unknown command: {args[0]}");
+    logger.Info("Use 'rauch help' for more information.");
+}
+else
 {
     // Execute command with remaining arguments
     var commandArgs = args.Skip(1).ToArray();
@@ -43,9 +48,4 @@ if (command != null)
     }
 
     await command.ExecuteAsync(commandArgs, services);
-}
-else
-{
-    logger.Error($"Unknown command: {args[0]}");
-    logger.Info("Use 'rauch help' for more information.");
 }

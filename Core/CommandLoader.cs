@@ -16,14 +16,38 @@ public class CommandLoader
         var commands = new List<ICommand>();
         var assembly = Assembly.GetExecutingAssembly();
 
-        // Find all top-level commands: _Index (groups) and Commands namespace
-        var commandTypes = assembly.GetTypes()
-            .Where(t => typeof(ICommand).IsAssignableFrom(t) &&
-                       !t.IsInterface &&
-                       !t.IsAbstract &&
-                       t != typeof(Help) &&
-                       (t.Name == "_Index" || t.Namespace == "Rauch.Commands"))
-            .ToList();
+        var commandTypes = new List<Type>();
+
+        commandTypes.AddRange(
+            assembly.GetTypes().Where(t => typeof(ICommandGroup).IsAssignableFrom(t)
+                && !t.IsInterface && !t.IsAbstract
+                && t.Namespace.StartsWith("Rauch.Commands.")
+            )
+        );
+
+        commandTypes.AddRange(
+            assembly.GetTypes().Where(t => typeof(ICommand).IsAssignableFrom(t)
+                && !t.IsInterface && !t.IsAbstract
+                && t != typeof(Help)
+                && t.Namespace == "Rauch.Commands"
+            )
+        );
+
+        commandTypes.AddRange(
+            assembly.GetTypes().Where(t => typeof(ICommandGroup).IsAssignableFrom(t)
+                && !t.IsInterface && !t.IsAbstract
+                && t.Namespace.StartsWith("Rauch.Plugins.")
+                && !commandTypes.Any(x => t.Namespace.Split('.').Last() == x.Namespace.Split('.').Last())
+            )
+        );
+
+        commandTypes.AddRange(
+            assembly.GetTypes().Where(t => typeof(ICommand).IsAssignableFrom(t)
+                && !t.IsInterface && !t.IsAbstract
+                && t.Namespace == "Rauch.Plugins"
+                && !commandTypes.Any(x => t.Namespace.Split('.').Last() == x.Namespace.Split('.').Last())
+            )
+        );
 
         // Instantiate all commands (except Help)
         foreach (var type in commandTypes)
@@ -31,8 +55,7 @@ public class CommandLoader
             try
             {
                 // Try parameterless constructor
-                var instance = Activator.CreateInstance(type) as ICommand;
-                if (instance != null)
+                if (Activator.CreateInstance(type) is ICommand instance)
                 {
                     commands.Add(instance);
                 }
@@ -51,7 +74,7 @@ public class CommandLoader
 
         // Add Help (needs the list of all commands)
         var help = new Help(commands);
-        commands.Insert(0, help); // Help should always be the first command
+        commands.Add(help); // Help should always be the first command
 
         return commands;
     }

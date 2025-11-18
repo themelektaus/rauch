@@ -11,7 +11,7 @@ public class Rauchmelder : ICommand
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var scheme = args.FirstOrDefault() == "http" ? "http" : "https";
-        
+
         var logger = services.GetService<ILogger>();
 
         try
@@ -88,7 +88,7 @@ public class Rauchmelder : ICommand
 
             logger?.Success("Rauchmelder installation completed successfully");
             logger?.Info($"Installation directory: {INSTALL_DIR}");
-            
+
             await StartProcess(rauchmelderExe, "interactive", logger: logger, ct: ct);
         }
         catch (Exception ex)

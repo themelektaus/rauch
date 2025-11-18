@@ -27,8 +27,7 @@ public abstract class BaseCommandGroup : ICommandGroup
         }
 
         var subCommandName = args[0];
-        var subCommand = _subCommands.FirstOrDefault(c =>
-            CommandMetadata.MatchesName(c, subCommandName));
+        var subCommand = _subCommands.FirstOrDefault(c => CommandMetadata.MatchesName(c, subCommandName));
 
         if (subCommand != null)
         {
@@ -85,26 +84,23 @@ public abstract class BaseCommandGroup : ICommandGroup
     private List<ICommand> LoadSubCommands()
     {
         var subCommands = new List<ICommand>();
-        var assembly = GetType().Assembly;
-
-        // Determine namespace based on group name
-        var expectedNamespace = GetType().Namespace;
+        var type = GetType();
+        var assembly = type.Assembly;
+        var namespaceSuffix = $".{type.Namespace.Split('.').Last()}";
 
         // Find all ICommand implementations in the corresponding namespace (except _Index)
         var subCommandTypes = assembly.GetTypes()
-            .Where(t => typeof(ICommand).IsAssignableFrom(t) &&
-                       !t.IsInterface &&
-                       !t.IsAbstract &&
-                       t.Name != "_Index" &&
-                       t.Namespace != null &&
-                       (t.Namespace == expectedNamespace || t.Namespace.StartsWith(expectedNamespace + ".")))
+            .Where(t => typeof(ICommand).IsAssignableFrom(t)
+                && !t.IsInterface && !t.IsAbstract
+                && t.Name != "_Index"
+                && (t.Namespace?.EndsWith(namespaceSuffix) ?? false))
             .ToList();
 
-        foreach (var type in subCommandTypes)
+        foreach (var subCommandType in subCommandTypes)
         {
             try
             {
-                var instance = Activator.CreateInstance(type) as ICommand;
+                var instance = Activator.CreateInstance(subCommandType) as ICommand;
                 if (instance != null)
                 {
                     subCommands.Add(instance);
@@ -113,7 +109,7 @@ public abstract class BaseCommandGroup : ICommandGroup
             catch (Exception ex)
             {
                 // Loading errors are ignored (no logger available in constructor)
-                Console.WriteLine($"Warning: Subcommand {type.Name} could not be loaded: {ex.Message}");
+                Console.WriteLine($"Warning: Subcommand {subCommandType.Name} could not be loaded: {ex.Message}");
             }
         }
 
