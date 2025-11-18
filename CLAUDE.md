@@ -36,10 +36,11 @@ The application uses a **namespace-based reflection system** to automatically di
 1. **Command Groups** (`_Index.cs` files):
    - Located in `Commands/<GroupName>/_Index.cs` or `Plugins/<GroupName>/_Index.cs`
    - Must inherit from `BaseCommandGroup`
-   - Automatically loads all `ICommand` implementations in the same namespace as subcommands
-   - Example: `Plugins/Install/_Index.cs` loads `Plugins/Install/Claude.cs`, `Plugins/Install/Rauchmelder.cs`, etc.
-   - Example: `Commands/Run/_Index.cs` loads `Commands/Run/Ping.cs`
-   - Example: `Commands/Windows/_Index.cs` loads `Commands/Windows/WinRm.cs`, `Commands/Windows/Update.cs`
+   - Automatically loads all `ICommand` implementations with matching namespace suffix
+   - Uses namespace suffix matching (e.g., `Rauch.Commands.Run` loads all types ending with `.Run`)
+   - Example: `Plugins/Install/_Index.cs` (namespace `Rauch.Plugins.Install`) loads `Plugins/Install/Claude.cs`, `Plugins/Install/Rauchmelder.cs`, etc.
+   - Example: `Commands/Run/_Index.cs` (namespace `Rauch.Commands.Run`) loads `Commands/Run/Ping.cs`
+   - Example: `Commands/Windows/_Index.cs` (namespace `Rauch.Commands.Windows`) loads `Commands/Windows/WinRm.cs`, `Commands/Windows/Update.cs`
 
 2. **Individual Commands**:
    - Located in `Commands/` (root level)
@@ -55,9 +56,13 @@ The application uses a **namespace-based reflection system** to automatically di
    - See **Plugin System** section for details
 
 4. **Command Loading Rules** (see `CommandLoader.cs`):
-   - Only loads classes named `_Index` (groups) or in `Rauch.Commands` namespace
-   - SubCommands are NOT loaded as top-level commands (prevents duplication)
-   - Plugin commands loaded from `plugins/` directory via `PluginLoader`
+   - **Multi-stage loading process**:
+     1. Load `ICommandGroup` from `Rauch.Commands.*` subnamespaces (e.g., `Rauch.Commands.Run`, `Rauch.Commands.Windows`)
+     2. Load `ICommand` from `Rauch.Commands` namespace (top-level commands)
+     3. Load `ICommandGroup` from `Rauch.Plugins.*` subnamespaces (with duplicate name avoidance)
+     4. Load `ICommand` from `Rauch.Plugins` namespace (with duplicate name avoidance)
+   - SubCommands are automatically loaded by `BaseCommandGroup` and NOT loaded as top-level commands
+   - Duplicate avoidance ensures Commands take precedence over Plugins with same name
    - `Help` command is special-cased and added after all other commands
 
 ### Attribute-Based Metadata System
@@ -387,15 +392,17 @@ Hidden commands execute normally but don't appear in help output.
 2. **Attributes over properties**: Metadata is declared via attributes, never exposed as properties
 3. **Async-first**: All commands use `Task ExecuteAsync()` for future-proofing
 4. **Validation before execution**: Arguments validated in `Program.cs` before calling `ExecuteAsync`
-5. **Namespace-based organization**: Command groups use namespace + `_Index.cs` pattern
-6. **Separation of concerns**: Top-level commands loaded by `CommandLoader`, subcommands loaded by `BaseCommandGroup`
-7. **Colored logging**: All console output uses ILogger with color-coded severity levels
-8. **Centralized using statements**: All using statements managed in `Usings.cs`, auto-generated for plugins via build process
-9. **Runtime plugin compilation**: Roslyn-based C# compilation for plugins
-10. **Aggressive caching**: SHA256-based cache invalidation for fast startup
-11. **Auto-injection**: Minimal plugin boilerplate via automatic code injection
-12. **Verbose logging control**: Silent by default, verbose only when needed (help/compilation)
-13. **Static utility methods**: Common plugin operations (download, unzip, process start) in `CommandUtils` with `using static`
+5. **Namespace-based organization**: Command groups use namespace + `_Index.cs` pattern with suffix matching
+6. **Multi-stage loading**: `CommandLoader` uses separate stages for ICommandGroup and ICommand from Commands/Plugins namespaces
+7. **Duplicate avoidance**: Commands take precedence over Plugins with same namespace suffix
+8. **Separation of concerns**: Top-level commands loaded by `CommandLoader`, subcommands loaded by `BaseCommandGroup`
+9. **Colored logging**: All console output uses ILogger with color-coded severity levels
+10. **Centralized using statements**: All using statements managed in `Usings.cs`, auto-generated for plugins via build process
+11. **Runtime plugin compilation**: Roslyn-based C# compilation for plugins
+12. **Aggressive caching**: SHA256-based cache invalidation for fast startup
+13. **Auto-injection**: Minimal plugin boilerplate via automatic code injection
+14. **Verbose logging control**: Silent by default, verbose only when needed (help/compilation)
+15. **Static utility methods**: Common plugin operations (download, unzip, process start) in `CommandUtils` with `using static`
 
 ## Dependencies
 

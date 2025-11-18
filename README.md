@@ -83,9 +83,20 @@ dotnet run uninstall nxlog
 
 ### Command Types
 
-1. **Individual Commands**: Core commands located in `Commands/` namespace
-2. **Command Groups**: Related commands organized in subdirectories (e.g., `network ping`)
-3. **Runtime Plugins**: External commands loaded from `plugins/` directory at runtime
+1. **Individual Commands**: Core commands located in `Commands/` namespace (e.g., `help`, `update`, `debug`)
+2. **Command Groups**: Related commands organized in subdirectories with automatic subcommand loading (e.g., `run ping`, `windows winrm`)
+3. **Runtime Plugins**: External commands loaded from `plugins/` directory at runtime with hot-reload support
+
+### Command Discovery
+
+Commands are discovered automatically using a **multi-stage reflection process**:
+
+1. Load `ICommandGroup` from `Rauch.Commands.*` subnamespaces (e.g., `Run`, `Windows`)
+2. Load `ICommand` from `Rauch.Commands` namespace (top-level commands)
+3. Load `ICommandGroup` from `Rauch.Plugins.*` subnamespaces (with duplicate avoidance)
+4. Load `ICommand` from `Rauch.Plugins` namespace (with duplicate avoidance)
+
+Command groups automatically load their subcommands using namespace suffix matching, ensuring Commands take precedence over Plugins with the same name.
 
 ### Plugin System
 
@@ -237,9 +248,15 @@ public class MyCommand : ICommand
 ### Creating a Command Group
 
 1. Create folder `Commands/<GroupName>/`
-2. Create `_Index.cs` with `BaseCommandGroup`
-3. Add subcommand files in the same folder
-4. Subcommands are automatically loaded via namespace reflection
+2. Create `_Index.cs` with `BaseCommandGroup`:
+   ```csharp
+   namespace Rauch.Commands.<GroupName>;
+
+   [Command("groupname", IsGroup = true)]
+   public class _Index : BaseCommandGroup { }
+   ```
+3. Add subcommand files in the same folder with matching namespace
+4. Subcommands are automatically loaded via namespace suffix matching
 
 ### Creating a Plugin
 
