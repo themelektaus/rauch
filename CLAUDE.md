@@ -20,9 +20,10 @@ dotnet run <command> [args]
 
 # Examples
 dotnet run help
-dotnet run network ping
-dotnet run install everything    # Plugin: Download and run Everything
+dotnet run run ping              # Run ping command
+dotnet run windows winrm         # Enable WinRM
 dotnet run install claude        # Plugin: Install Claude Code
+dotnet run install rauchmelder   # Plugin: Install Rauchmelder with .NET 9
 dotnet run update                # Update rauch from GitHub
 ```
 
@@ -36,7 +37,9 @@ The application uses a **namespace-based reflection system** to automatically di
    - Located in `Commands/<GroupName>/_Index.cs` or `Plugins/<GroupName>/_Index.cs`
    - Must inherit from `BaseCommandGroup`
    - Automatically loads all `ICommand` implementations in the same namespace as subcommands
-   - Example: `Plugins/Install/_Index.cs` loads `Plugins/Install/Everything.cs`, `Plugins/Install/Claude.cs`, etc.
+   - Example: `Plugins/Install/_Index.cs` loads `Plugins/Install/Claude.cs`, `Plugins/Install/Rauchmelder.cs`, etc.
+   - Example: `Commands/Run/_Index.cs` loads `Commands/Run/Ping.cs`
+   - Example: `Commands/Windows/_Index.cs` loads `Commands/Windows/WinRm.cs`, `Commands/Windows/Update.cs`
 
 2. **Individual Commands**:
    - Located in `Commands/` (root level)
@@ -420,7 +423,16 @@ Hidden commands execute normally but don't appear in help output.
    - `SetWorkingDirectory(path, logger)`: Create and set working directory
    - `DownloadFile(url, filePath, logger, ct)`: Download file with progress
    - `Unzip(zipPath, destinationPath, logger, ct)`: Extract ZIP archive
-   - `StartProcess(filePath, logger)`: Launch executable
+   - `StartProcess(filePath, arguments, flags, logger, ct)`: Launch executable with arguments and flags
+   - `EnsureAdministrator(logger)`: Check for Windows administrator privileges
+   - `ExecutePowershellCommand(command, flags, logger, ct)`: Execute PowerShell command
+   - `ExecutePowershellFile(file, arguments, flags, logger, ct)`: Execute PowerShell script file
+   - `ExecutePowershellFile<T>(arguments, flags, logger, ct)`: Execute embedded PowerShell script by type
+9. **CommandFlags Enum**: Use flags to control process behavior:
+   - `CommandFlags.None`: Default behavior
+   - `CommandFlags.NoProfile`: PowerShell -NoProfile flag
+   - `CommandFlags.UseShellExecute`: Use shell execute for process
+   - `CommandFlags.CreateNoWindow`: Create process without window
 
 ## Plugin Examples
 
@@ -442,7 +454,7 @@ public class MyTool : ICommand
         {
             SetWorkingDirectory("data", logger);
             await DownloadFile(DOWNLOAD_URL, FILE_NAME, logger, ct);
-            StartProcess(FILE_NAME, logger);
+            await StartProcess(FILE_NAME, logger: logger, ct: ct);
         }
         catch (Exception ex)
         {
@@ -476,7 +488,7 @@ public class PortableApp : ICommand
             File.Delete(zipPath);
 
             var exePath = Path.Combine(INSTALL_DIR, "app.exe");
-            StartProcess(exePath, logger);
+            await StartProcess(exePath, logger: logger, ct: ct);
         }
         catch (Exception ex)
         {
@@ -503,37 +515,158 @@ public class Teams : ICommand
         {
             logger?.Info("Downloading and executing Teams installation script...");
 
-            // Execute remote PowerShell script
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"irm '{SCRIPT_URL}' | iex\"",
-                UseShellExecute = false,
-                CreateNoWindow = false
-            };
+            // Execute remote PowerShell script using CommandUtils
+            var exitCode = await ExecutePowershellCommand(
+                $"irm '{SCRIPT_URL}' | iex",
+                CommandFlags.NoProfile,
+                logger,
+                ct
+            );
 
-            using var process = Process.Start(startInfo);
-            if (process == null)
-            {
-                logger?.Error("Failed to start PowerShell process");
-                return;
-            }
-
-            await process.WaitForExitAsync(ct);
-
-            if (process.ExitCode == 0)
+            if (exitCode == 0)
             {
                 logger?.Success("Teams installation completed successfully");
             }
             else
             {
-                logger?.Error($"Teams installation failed with exit code {process.ExitCode}");
+                logger?.Error($"Teams installation failed with exit code {exitCode}");
             }
         }
         catch (Exception ex)
         {
             logger?.Error($"Failed to install Teams: {ex.Message}");
         }
+    }
+}
+```
+
+### Example 4: Plugin with Embedded PowerShell Script
+```csharp
+namespace Rauch.Commands.Activate;
+
+[Command("winrm", "Enable WinRM and configure remote management")]
+public class WinRm : ICommand
+{
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    {
+        var logger = services.GetService<ILogger>();
+
+        try
+        {
+            // Check for administrator privileges
+            if (!EnsureAdministrator(logger))
+            {
+                return;
+            }
+
+            logger?.Info("Executing WinRM configuration script...");
+
+            // Execute embedded PowerShell script by type
+            var exitCode = await ExecutePowershellFile<WinRm>(logger: logger, ct: ct);
+
+            if (exitCode == 0)
+            {
+                logger?.Success("WinRM configuration completed successfully");
+            }
+            else
+            {
+                logger?.Error($"WinRM configuration failed with exit code {exitCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.Error($"Failed to configure WinRM: {ex.Message}");
+        }
+    }
+}
+```
+**Note**: The PowerShell script must be embedded as a resource in rauch.csproj:
+```xml
+<ItemGroup>
+  <EmbeddedResource Include="Commands\**\*.ps1" />
+</ItemGroup>
+```
+
+### Example 5: Plugin with .NET Runtime Detection and Installation
+```csharp
+namespace Rauch.Plugins.Install;
+
+[Command("rauchmelder", "Install Rauchmelder application with .NET 9 runtime")]
+public class Rauchmelder : ICommand
+{
+    const string DOTNET_RUNTIME_URL = "http://cloud.it-guards.at/download/dotnet-runtime-9.0.4-win-x64.exe";
+    const string RAUCHMELDER_URL = "http://cloud.it-guards.at/download/rauchmelder/windows/Rauchmelder.exe";
+    const string INSTALL_DIR = @"C:\ProgramData\Rauchmelder";
+
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    {
+        var logger = services.GetService<ILogger>();
+
+        try
+        {
+            if (!EnsureAdministrator(logger))
+            {
+                return;
+            }
+
+            SetWorkingDirectory(INSTALL_DIR, logger);
+
+            // Check and install .NET runtime if needed
+            if (!IsDotNetRuntimeInstalled(logger, 9))
+            {
+                logger?.Warning(".NET 9 runtime not found. Installing...");
+                var runtimeInstaller = "dotnet-runtime-9.0.4-win-x64.exe";
+                await DownloadFile(DOTNET_RUNTIME_URL, runtimeInstaller, logger, ct);
+
+                var exitCode = await StartProcess(
+                    runtimeInstaller,
+                    "/install /quiet /norestart",
+                    CommandFlags.None,
+                    logger,
+                    ct
+                );
+
+                if (exitCode != 0)
+                {
+                    logger?.Error($".NET runtime installation failed with exit code {exitCode}");
+                    return;
+                }
+            }
+
+            // Download and configure application
+            var rauchmelderExe = "Rauchmelder.exe";
+            if (File.Exists(rauchmelderExe))
+            {
+                File.Delete(rauchmelderExe);
+            }
+            await DownloadFile(RAUCHMELDER_URL, rauchmelderExe, logger, ct);
+
+            // Create configuration file
+            var configPath = Path.Combine(INSTALL_DIR, "Config.ini");
+            await File.WriteAllLinesAsync(configPath, [
+                "[General]",
+                "InformUrl=https://feuerwehr.cloud.it-guards.at/inform",
+                "DownloadUrl=https://cloud.it-guards.at/download/rauchmelder",
+                "TunnelUrl=https://feuerwehr.cloud.it-guards.at/api/tunnel"
+            ], ct);
+
+            logger?.Success("Rauchmelder installation completed successfully");
+
+            // Launch application
+            await StartProcess(rauchmelderExe, "interactive", logger: logger, ct: ct);
+        }
+        catch (Exception ex)
+        {
+            logger?.Error($"Failed to install Rauchmelder: {ex.Message}");
+        }
+    }
+
+    private bool IsDotNetRuntimeInstalled(ILogger logger, uint version)
+    {
+        // Check if .NET runtime is installed by executing 'dotnet --list-runtimes'
+        // and searching for "Microsoft.NETCore.App {version}."
+        // Implementation details omitted for brevity
+        return false;
     }
 }
 ```

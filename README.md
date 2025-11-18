@@ -47,23 +47,36 @@ dotnet run <command> [arguments]
 
 # Examples
 dotnet run update              # Update rauch to latest version
-dotnet run network ping        # Run network ping tool
+dotnet run run ping            # Run ping command
+dotnet run windows winrm       # Enable WinRM and configure remote management
 ```
 
 ### Plugin Commands
 
 ```bash
-# Install Everything Search Engine
-dotnet run install everything
-
 # Install Claude Code with portable Git Bash
 dotnet run install claude
+
+# Install Rauchmelder with .NET 9 runtime
+dotnet run install rauchmelder
 
 # Install Microsoft Office
 dotnet run install office
 
+# Install Microsoft Teams
+dotnet run install teams
+
+# Install Visual C++ Redistributable 2022
+dotnet run install vcredist22
+
+# Install NXLog
+dotnet run install nxlog
+
 # Uninstall ConnectWise Automate agents
 dotnet run uninstall cwa
+
+# Uninstall NXLog
+dotnet run uninstall nxlog
 ```
 
 ## Architecture
@@ -134,10 +147,19 @@ public class MyTool : ICommand
 The `CommandUtils` class provides static helper methods for plugins:
 
 - `SetWorkingDirectory(path, logger)`: Create and navigate to directory
-- `DownloadFile(url, filePath, ct, logger)`: Download file with progress logging
-- `Unzip(zipPath, destinationPath, ct, logger)`: Extract ZIP archive
-- `StartProcess(filePath, logger)`: Launch executable and wait for exit
+- `DownloadFile(url, filePath, logger, ct)`: Download file with progress logging
+- `Unzip(zipPath, destinationPath, logger, ct)`: Extract ZIP archive
+- `StartProcess(filePath, arguments, flags, logger, ct)`: Launch executable with arguments and flags
 - `EnsureAdministrator(logger)`: Check for Windows administrator privileges
+- `ExecutePowershellCommand(command, flags, logger, ct)`: Execute PowerShell command
+- `ExecutePowershellFile(file, arguments, flags, logger, ct)`: Execute PowerShell script file
+- `ExecutePowershellFile<T>(arguments, flags, logger, ct)`: Execute embedded PowerShell script by type
+
+**CommandFlags Enum:**
+- `CommandFlags.None`: Default behavior
+- `CommandFlags.NoProfile`: PowerShell -NoProfile flag
+- `CommandFlags.UseShellExecute`: Use shell execute for process
+- `CommandFlags.CreateNoWindow`: Create process without window
 
 ## Project Structure
 
@@ -146,19 +168,43 @@ rauch/
 ├── Commands/              # Core commands (Rauch.Commands namespace)
 │   ├── Help.cs           # Help command
 │   ├── Update.cs         # Self-update command
-│   └── Network/          # Command group example
+│   ├── Debug.cs          # Debug command
+│   ├── Run/              # Run command group
+│   │   ├── _Index.cs     # Group definition
+│   │   ├── Ping.cs       # Ping subcommand
+│   │   └── Ping.ps1      # Embedded PowerShell script
+│   └── Windows/          # Windows command group
 │       ├── _Index.cs     # Group definition
-│       └── Ping.cs       # Subcommand
+│       ├── WinRm.cs      # WinRM configuration subcommand
+│       ├── WinRm.ps1     # Embedded PowerShell script
+│       ├── Update.cs     # Windows Update subcommand
+│       └── Update.ps1    # Embedded PowerShell script
 ├── Plugins/               # Runtime plugins (compiled at runtime)
 │   ├── .cache/           # Compiled plugin cache (auto-generated)
 │   ├── Install/          # Install command group
+│   │   ├── _Index.cs     # Group definition
+│   │   ├── Claude.cs     # Install Claude Code
+│   │   ├── Rauchmelder.cs # Install Rauchmelder
+│   │   ├── Office.cs     # Install Microsoft Office
+│   │   ├── Teams.cs      # Install Microsoft Teams
+│   │   ├── VcRedist22.cs # Install VC++ Redistributable
+│   │   ├── VcRedist22.ps1 # PowerShell script
+│   │   ├── Nxlog.cs      # Install NXLog
+│   │   └── Nxlog.ps1     # PowerShell script
 │   └── Uninstall/        # Uninstall command group
+│       ├── _Index.cs     # Group definition
+│       ├── Cwa.cs        # Uninstall ConnectWise Automate
+│       ├── Nxlog.cs      # Uninstall NXLog
+│       └── Nxlog.ps1     # PowerShell script
 ├── Core/                  # Core infrastructure
 │   ├── CommandLoader.cs  # Command discovery system
 │   ├── PluginLoader.cs   # Runtime plugin compilation
 │   ├── CommandUtils.cs   # Utility methods for plugins
 │   └── Attributes/       # Validation and metadata attributes
-└── CLAUDE.md              # Detailed developer documentation
+├── CLAUDE.md              # Detailed developer documentation
+├── README.md              # User documentation
+├── install.ps1            # Installation script
+└── Logo.ico               # Application icon
 ```
 
 ## Development
