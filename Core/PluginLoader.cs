@@ -69,33 +69,29 @@ public class PluginLoader
             }
         }
 
-        // 2. Load plugin groups (subdirectories with _Index.cs)
+        // 2. Load plugin groups
         var subdirectories = Directory.GetDirectories(_pluginDirectory)
             .Where(d => !d.EndsWith($"{Path.DirectorySeparatorChar}.cache"))
             .ToArray();
 
         foreach (var subdir in subdirectories)
         {
-            var indexFile = Path.Combine(subdir, "_Index.cs");
-            if (File.Exists(indexFile))
+            try
             {
-                try
-                {
-                    // Load all .cs files in the group together
-                    var groupFiles = Directory.GetFiles(subdir, "*.cs", SearchOption.TopDirectoryOnly);
-                    var (groupCommands, wasCompiled) = LoadPluginGroupWithCache(subdir, groupFiles, verboseLogging);
-                    commands.AddRange(groupCommands);
+                // Load all .cs files in the group together
+                var groupFiles = Directory.GetFiles(subdir, "*.cs", SearchOption.TopDirectoryOnly);
+                var (groupCommands, wasCompiled) = LoadPluginGroupWithCache(subdir, groupFiles, verboseLogging);
+                commands.AddRange(groupCommands);
 
-                    compilationInfo.Add((
-                        name: Path.GetFileName(subdir),
-                        commandCount: groupCommands.Select(x => x.GetCommandCount()).Sum(),
-                        wasCompiled
-                    ));
-                }
-                catch (Exception ex)
-                {
-                    _logger?.Error($"Failed to load plugin group {Path.GetFileName(subdir)}: {ex.Message}");
-                }
+                compilationInfo.Add((
+                    name: Path.GetFileName(subdir),
+                    commandCount: groupCommands.Select(x => x.GetCommandCount()).Sum(),
+                    wasCompiled
+                ));
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error($"Failed to load plugin group {Path.GetFileName(subdir)}: {ex.Message}");
             }
         }
 
@@ -237,7 +233,7 @@ public class PluginLoader
     /// Loads commands from a pre-compiled assembly
     /// Uses duck-typing to find types with ExecuteAsync method and CommandAttribute
     /// </summary>
-    /// <param name="isGroup">If true, only loads the command group (_Index class), not subcommands</param>
+    /// <param name="isGroup">If true, only loads the command group, not subcommands</param>
     private List<T> LoadFromAssembly<T>(byte[] rawAssembly, bool isGroup = false) where T : ICommand
     {
         var commands = new List<T>();
@@ -245,17 +241,15 @@ public class PluginLoader
         var assembly = LiveCode.AssemblyReference.Create(rawAssembly).Assembly;
 
         // Find all types with [Command] attribute
-        var commandTypes = assembly.GetTypes()
-            .Where(t => !t.IsInterface &&
-                        !t.IsAbstract &&
-                        t.GetCustomAttributesData().Any(a => a.AttributeType.Name == "CommandAttribute"))
-            .ToList();
+        var commandTypes = assembly.GetTypes().Where(t => !t.IsInterface && !t.IsAbstract &&
+            t.GetCustomAttributesData().Any(a => a.AttributeType.Name == "CommandAttribute")
+        ).ToList();
 
         foreach (var type in commandTypes)
         {
             try
             {
-                // For plugin groups, only load the _Index class (marked with IsGroup = true)
+                // For plugin groups, only load class marked with IsGroup = true
                 if (isGroup)
                 {
                     var commandAttr = type.GetCustomAttributesData()

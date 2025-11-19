@@ -93,11 +93,11 @@ public abstract class BaseCommandGroup : ICommandGroup
         var assembly = type.Assembly;
         var namespaceSuffix = $".{type.Namespace.Split('.').Last()}";
 
-        // Find all ICommand implementations in the corresponding namespace (except _Index)
+        // Find all ICommand implementations in the corresponding namespace (except ICommandGroup)
         var subCommandTypes = assembly.GetTypes()
             .Where(t => typeof(ICommand).IsAssignableFrom(t)
                 && !t.IsInterface && !t.IsAbstract
-                && t.Name != "_Index"
+                && !typeof(ICommandGroup).IsAssignableFrom(t)
                 && (t.Namespace?.EndsWith(namespaceSuffix) ?? false))
             .ToList();
 
