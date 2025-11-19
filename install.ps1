@@ -1,3 +1,5 @@
+Write-Host ""
+
 Set-Variable ProgressPreference SilentlyContinue
 
 Function IsDotNetRuntimeInstalled
@@ -42,7 +44,10 @@ if ($True -or !(IsDotNetRuntimeInstalled))
 {
     if (!(Test-Path -PathType Container "data"))
     {
-        New-Item -ItemType Directory -Path "data" > $Null
+        Write-Host "Creating data directory..." -ForegroundColor Yellow
+        New-Item -ItemType Directory -Path "data" | Out-Null
+        Write-Host "  -> $path\data" -ForegroundColor Gray
+        Write-Host ""
     }
     
     Write-Host "Downloading .NET 10 (Runtime) ..." -ForegroundColor Yellow
@@ -62,7 +67,6 @@ if ($True -or !(IsDotNetRuntimeInstalled))
     try
     {
         Start-Process -Wait "data\dotnet-runtime-10.0.0-win-x64.exe" -ArgumentList "/install /quiet /norestart"
-        Write-Host ""
     }
     catch
     {
