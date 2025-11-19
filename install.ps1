@@ -40,7 +40,7 @@ if (!(Test-Path -PathType Container $path))
 
 Set-Location $path
 
-if ($True -or !(IsDotNetRuntimeInstalled))
+if (!(IsDotNetRuntimeInstalled))
 {
     if (!(Test-Path -PathType Container "data"))
     {
@@ -67,6 +67,8 @@ if ($True -or !(IsDotNetRuntimeInstalled))
     try
     {
         Start-Process -Wait "data\dotnet-runtime-10.0.0-win-x64.exe" -ArgumentList "/install /quiet /norestart"
+        Write-Host "  -> Installation successful" -ForegroundColor Green
+        Write-Host ""
     }
     catch
     {
