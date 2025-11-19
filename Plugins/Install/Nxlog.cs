@@ -1,4 +1,4 @@
-namespace Rauch.Commands.Install;
+namespace Rauch.Plugins.Install;
 
 [Command("nxlog")]
 public class Nxlog : ICommand

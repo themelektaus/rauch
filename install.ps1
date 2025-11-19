@@ -38,29 +38,56 @@ if (!(Test-Path -PathType Container $path))
 
 Set-Location $path
 
-if (!(IsDotNetRuntimeInstalled))
+if ($True -or !(IsDotNetRuntimeInstalled))
 {
-    Invoke-WebRequest "https://cloud.it-guards.at/download/dotnet-runtime-10.0.0-win-x64.exe" -OutFile "dotnet-runtime-10.0.0-win-x64.exe"
+    if (!(Test-Path -PathType Container "data"))
+    {
+        New-Item -ItemType Directory -Path "data" > $Null
+    }
     
-    Start-Process -Wait "dotnet-runtime-10.0.0-win-x64.exe" -ArgumentList "/install /quiet /norestart"
+    Write-Host "Downloading .NET 10 (Runtime) ..." -ForegroundColor Yellow
+    try
+    {
+        Invoke-WebRequest "https://cloud.it-guards.at/download/dotnet-runtime-10.0.0-win-x64.exe" -OutFile "data\dotnet-runtime-10.0.0-win-x64.exe"
+        Write-Host "  -> Download successful" -ForegroundColor Green
+        Write-Host ""
+    }
+    catch
+    {
+        Write-Host "  -> Download error: $($_.Exception.Message)" -ForegroundColor Red
+        exit 3
+    }
+
+    Write-Host "Installing .NET 10 (Runtime) ..." -ForegroundColor Yellow
+    try
+    {
+        Start-Process -Wait "data\dotnet-runtime-10.0.0-win-x64.exe" -ArgumentList "/install /quiet /norestart"
+        Write-Host ""
+    }
+    catch
+    {
+        Write-Host "  -> Installation error: $($_.Exception.Message)" -ForegroundColor Red
+        exit 2
+    }
 }
 
 # Download rauch.exe
 Write-Host "Downloading rauch..." -ForegroundColor Yellow
-try {
+try
+{
     Invoke-WebRequest "https://raw.githubusercontent.com/themelektaus/rauch/main/Build/Windows/rauch.exe" -OutFile "rauch.exe"
     Write-Host "  -> Download successful" -ForegroundColor Green
     Write-Host ""
-} catch {
+}
+catch
+{
     Write-Host "  -> Download error: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "Installation aborted." -ForegroundColor Red
-    pause
     exit 1
 }
 
 # Add to PATH if not exists
 $currentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+
 if ($currentUserPath -notlike "*$path*")
 {
     Write-Host "Adding rauch to PATH environment variable..." -ForegroundColor Yellow
