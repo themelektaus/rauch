@@ -248,15 +248,16 @@ public class MyCommand : ICommand
 ### Creating a Command Group
 
 1. Create folder `Commands/<GroupName>/`
-2. Create `_Index.cs` with `BaseCommandGroup`:
+2. Create a file (by convention `_Index.cs`) with `BaseCommandGroup`:
    ```csharp
    namespace Rauch.Commands.<GroupName>;
 
    [Command("groupname", IsGroup = true)]
    public class _Index : BaseCommandGroup { }
    ```
+   Note: The filename can be anything; what matters is the `IsGroup = true` attribute and inheriting from `BaseCommandGroup`.
 3. Add subcommand files in the same folder with matching namespace
-4. Subcommands are automatically loaded via namespace suffix matching
+4. Subcommands (all `ICommand` implementations that are not `ICommandGroup`) are automatically loaded via namespace suffix matching
 
 ### Creating a Plugin
 

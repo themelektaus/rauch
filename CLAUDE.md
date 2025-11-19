@@ -33,11 +33,12 @@ dotnet run update                # Update rauch from GitHub
 
 The application uses a **namespace-based reflection system** to automatically discover and load commands:
 
-1. **Command Groups** (`_Index.cs` files):
-   - Located in `Commands/<GroupName>/_Index.cs` or `Plugins/<GroupName>/_Index.cs`
-   - Must inherit from `BaseCommandGroup`
-   - Automatically loads all `ICommand` implementations with matching namespace suffix
-   - Uses namespace suffix matching (e.g., `Rauch.Commands.Run` loads all types ending with `.Run`)
+1. **Command Groups**:
+   - Located in `Commands/<GroupName>/` or `Plugins/<GroupName>/` subdirectories
+   - Must inherit from `BaseCommandGroup` and have `[Command(IsGroup = true)]` attribute
+   - By convention named `_Index.cs`, but any filename works
+   - Automatically loads all `ICommand` implementations (excluding `ICommandGroup`) with matching namespace suffix
+   - Uses namespace suffix matching (e.g., `Rauch.Commands.Run` loads all types in namespaces ending with `.Run`)
    - Example: `Plugins/Install/_Index.cs` (namespace `Rauch.Plugins.Install`) loads `Plugins/Install/Claude.cs`, `Plugins/Install/Rauchmelder.cs`, etc.
    - Example: `Commands/Run/_Index.cs` (namespace `Rauch.Commands.Run`) loads `Commands/Run/Ping.cs`
    - Example: `Commands/Windows/_Index.cs` (namespace `Rauch.Commands.Windows`) loads `Commands/Windows/WinRm.cs`, `Commands/Windows/Update.cs`
@@ -312,15 +313,19 @@ public class MyCommand : ICommand
 ### Creating a Command Group with Subcommands
 
 1. Create folder `Commands/<GroupName>/`
-2. Create `_Index.cs` with `BaseCommandGroup`:
+2. Create a file (by convention `_Index.cs`) with `BaseCommandGroup`:
    ```csharp
    namespace Rauch.Commands.<GroupName>;
 
    [Command("groupname", "Description", IsGroup = true)]
    public class _Index : BaseCommandGroup { }
    ```
+   **Note**: The filename can be anything; what matters is:
+   - Inheriting from `BaseCommandGroup`
+   - Having `[Command(IsGroup = true)]` attribute
+   - Using the correct namespace
 3. Add subcommand files in same folder (e.g., `Commands/GroupName/SubCommand.cs`)
-4. Subcommands are **automatically loaded** by `BaseCommandGroup` via namespace reflection
+4. Subcommands (all `ICommand` implementations that are not `ICommandGroup`) are **automatically loaded** by `BaseCommandGroup` via namespace suffix matching
 
 **Important**: Subcommands in a group namespace are **NOT** loaded as top-level commands by `CommandLoader`.
 
@@ -392,7 +397,7 @@ Hidden commands execute normally but don't appear in help output.
 2. **Attributes over properties**: Metadata is declared via attributes, never exposed as properties
 3. **Async-first**: All commands use `Task ExecuteAsync()` for future-proofing
 4. **Validation before execution**: Arguments validated in `Program.cs` before calling `ExecuteAsync`
-5. **Namespace-based organization**: Command groups use namespace + `_Index.cs` pattern with suffix matching
+5. **Namespace-based organization**: Command groups use namespace suffix matching with `IsGroup = true` attribute (filename convention: `_Index.cs`)
 6. **Multi-stage loading**: `CommandLoader` uses separate stages for ICommandGroup and ICommand from Commands/Plugins namespaces
 7. **Duplicate avoidance**: Commands take precedence over Plugins with same namespace suffix
 8. **Separation of concerns**: Top-level commands loaded by `CommandLoader`, subcommands loaded by `BaseCommandGroup`
