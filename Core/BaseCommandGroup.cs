@@ -11,6 +11,11 @@ public abstract class BaseCommandGroup : ICommandGroup
 
     public IEnumerable<ICommand> SubCommands => _subCommands;
 
+    public void AddSubCommandsFromOtherGroup(ICommandGroup otherGroup)
+    {
+        _subCommands.AddRange(otherGroup.SubCommands);
+    }
+
     protected BaseCommandGroup()
     {
         _subCommands = LoadSubCommands();

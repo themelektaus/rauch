@@ -9,13 +9,6 @@ public class VcRedist22 : ICommand
 
         var exitCode = await ExecutePowershellFile(@"plugins\install\vcredist22.ps1", flags: CommandFlags.NoProfile, logger: logger, ct: ct);
 
-        if (exitCode == 0)
-        {
-            logger?.Success("Visual C++ Redistributable installation completed successfully");
-        }
-        else
-        {
-            logger?.Error($"Visual C++ Redistributable installation failed with exit code {exitCode}");
-        }
+        logger?.Exit(exitCode);
     }
 }

@@ -9,13 +9,6 @@ public class Update : ICommand
 
         var exitCode = await ExecutePowershellFile<Update>(flags: CommandFlags.NoProfile, logger: logger, ct: ct);
 
-        if (exitCode == 0)
-        {
-            logger?.Success("Windows Update completed successfully");
-        }
-        else
-        {
-            logger?.Error($"Windows Update failed with exit code {exitCode}");
-        }
+        logger?.Exit(exitCode);
     }
 }

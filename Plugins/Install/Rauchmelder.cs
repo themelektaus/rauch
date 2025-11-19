@@ -45,13 +45,10 @@ public class Rauchmelder : ICommand
                     ct
                 );
 
-                if (exitCode == 0)
+                logger?.Exit(exitCode);
+
+                if (exitCode != 0)
                 {
-                    logger?.Success(".NET runtime installed successfully");
-                }
-                else
-                {
-                    logger?.Error($".NET runtime installation failed with exit code {exitCode}");
                     return;
                 }
             }

@@ -102,4 +102,18 @@ public class ConsoleLogger : ILogger
             Console.WriteLine(message);
         }
     }
+
+    public void Exit(int exitCode)
+    {
+        var message = $"Exit Code {exitCode}";
+
+        if (exitCode == 0)
+        {
+            Success(message);
+        }
+        else
+        {
+            Error(message);
+        }
+    }
 }

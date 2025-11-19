@@ -9,13 +9,6 @@ public class Speedtest : ICommand
 
         var exitCode = await ExecutePowershellFile(@"plugins\run\speedtest.ps1", flags: CommandFlags.NoProfile, logger: logger, ct: ct);
 
-        if (exitCode == 0)
-        {
-            logger?.Success("Speedtest completed successfully");
-        }
-        else
-        {
-            logger?.Error($"Speedtest failed with exit code {exitCode}");
-        }
+        logger?.Exit(exitCode);
     }
 }

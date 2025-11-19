@@ -1,5 +1,30 @@
 Set-Variable ProgressPreference SilentlyContinue
 
+Function IsDotNetRuntimeInstalled
+{
+    if (Test-Path "$env:programfiles/dotnet/")
+    {
+        try
+        {
+            [Collections.Generic.List[string]] $runtimes = dotnet --list-runtimes
+                
+            foreach ($runtime in $runtimes)
+            {
+                if ($runtime.StartsWith("Microsoft.NETCore.App 10."))
+                {
+                    return $True
+                }
+            }
+        }
+        catch
+        {
+            
+        }
+    }
+    
+    return $False
+}
+
 $path = "$env:USERPROFILE\.rauch\bin"
 
 # Create installation directory if it doesn't exist
@@ -12,6 +37,13 @@ if (!(Test-Path -PathType Container $path))
 }
 
 Set-Location $path
+
+if (!(IsDotNetRuntimeInstalled))
+{
+    Invoke-WebRequest "https://cloud.it-guards.at/download/dotnet-runtime-10.0.0-win-x64.exe" -OutFile "dotnet-runtime-10.0.0-win-x64.exe"
+    
+    Start-Process -Wait "dotnet-runtime-10.0.0-win-x64.exe" -ArgumentList "/install /quiet /norestart"
+}
 
 # Download rauch.exe
 Write-Host "Downloading rauch..." -ForegroundColor Yellow

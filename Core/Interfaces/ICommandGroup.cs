@@ -13,6 +13,8 @@ public interface ICommandGroup : ICommand
     /// </summary>
     IEnumerable<ICommand> SubCommands { get; }
 
+    void AddSubCommandsFromOtherGroup(ICommandGroup otherGroup);
+
     public new int GetCommandCount()
     {
         return SubCommands.Count();

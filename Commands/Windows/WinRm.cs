@@ -12,13 +12,6 @@ public class WinRm : ICommand
 
         var exitCode = await ExecutePowershellFile<WinRm>(logger: logger, ct: ct);
 
-        if (exitCode == 0)
-        {
-            logger?.Success("WinRM configuration completed successfully");
-        }
-        else
-        {
-            logger?.Error($"WinRM configuration failed with exit code {exitCode}");
-        }
+        logger?.Exit(exitCode);
     }
 }

@@ -37,7 +37,7 @@ public class PluginLoader
     /// Uses cached assemblies when source hasn't changed
     /// Supports both root-level plugins and command groups
     /// </summary>
-    public List<ICommand> LoadPlugins(bool verboseLogging = false)
+    List<ICommand> LoadPlugins(bool verboseLogging = false)
     {
         var commands = new List<ICommand>();
 
@@ -119,6 +119,28 @@ public class PluginLoader
         }
 
         return commands;
+    }
+
+    public void LoadPluginsInto(List<ICommand> commands, bool verboseLogging = false)
+    {
+        var pluginCommands = LoadPlugins(verboseLogging);
+
+        foreach (var pluginCommand in pluginCommands)
+        {
+            if (pluginCommand is ICommandGroup pluginCommandGroup)
+            {
+                var n = pluginCommand.GetType().Namespace.Split('.').Last();
+
+                var commandGroup = commands.FirstOrDefault(c => c is ICommandGroup && c.GetType().Namespace.Split('.').Last() == n) as ICommandGroup;
+                if (commandGroup is not null)
+                {
+                    commandGroup.AddSubCommandsFromOtherGroup(pluginCommandGroup);
+                    continue;
+                }
+            }
+
+            commands.Add(pluginCommand);
+        }
     }
 
     /// <summary>
@@ -441,7 +463,7 @@ public class PluginLoader
         _logger?.Debug($"Auto-injected {missingUsings.Count} missing using statement(s)");
 
         // Find namespace declaration
-        var lines = sourceCode.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+        var lines = sourceCode.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
         var namespaceIndex = -1;
 
         for (int i = 0; i < lines.Length; i++)

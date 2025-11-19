@@ -118,14 +118,7 @@ public class Cwa : ICommand
                     logger?.Warning(error.Trim());
                 }
 
-                if (process.ExitCode == 0)
-                {
-                    logger?.Success("ScreenConnect Client uninstalled successfully");
-                }
-                else
-                {
-                    logger?.Warning($"WMIC exited with code {process.ExitCode}");
-                }
+                logger?.Exit(process.ExitCode);
             }
         }
         catch (Exception ex)

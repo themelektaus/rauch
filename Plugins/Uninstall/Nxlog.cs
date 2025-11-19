@@ -10,13 +10,6 @@ public class Nxlog : ICommand
 
         var exitCode = await ExecutePowershellFile(@"plugins\uninstall\nxlog.ps1", flags: CommandFlags.NoProfile, logger: logger, ct: ct);
 
-        if (exitCode == 0)
-        {
-            logger?.Success("Nxlog uninstallation completed successfully");
-        }
-        else
-        {
-            logger?.Error($"Nxlog uninstallation failed with exit code {exitCode}");
-        }
+        logger?.Exit(exitCode);
     }
 }

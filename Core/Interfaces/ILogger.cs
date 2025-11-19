@@ -39,4 +39,6 @@ public interface ILogger
     /// Writes a line without additional formatting
     /// </summary>
     void WriteLine(string message, ConsoleColor? color = null);
+
+    void Exit(int exitCode);
 }
