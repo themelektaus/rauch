@@ -3,9 +3,15 @@ namespace Rauch.Plugins.Gump;
 [Command("basic")]
 public class Basic : ICommand
 {
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
+
+        if (!EnsureAdministrator(logger))
+        {
+            return;
+        }
 
         async Task Run(string powershellCommand)
         {
@@ -63,7 +69,7 @@ public class Basic : ICommand
 
         if (logger?.Question("Adjust Windows Search", ["yes", "no"], "yes") == "yes")
         {
-            await Run(@"New-Item -Path ""HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"" - ErrorAction SilentlyContinue");
+            await Run(@"New-Item -Path ""HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"" -ErrorAction SilentlyContinue");
             await Run(@"New-ItemProperty -Path ""HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"" -Name ""AllowCloudSearch"" - Value 0 -Force -ErrorAction SilentlyContinue");
             await Run(@"New-ItemProperty -Path ""HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"" -Name ""AllowCortana"" -Value 0 -Force -ErrorAction SilentlyContinue");
             await Run(@"New-ItemProperty -Path ""HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"" -Name ""AllowCortanaAboveLock"" - Value 0 -Force -ErrorAction SilentlyContinue");
