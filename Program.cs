@@ -7,22 +7,19 @@ var services = new ServiceContainer();
 var logger = new ConsoleLogger(enableColors: true);
 services.RegisterSingleton<ILogger>(logger);
 
-// Check if we should show help (no arguments or "help" command)
-var showingHelp = args.Length == 0 || args[0].Equals("help", StringComparison.OrdinalIgnoreCase);
-
 // Load all available commands via reflection (including plugins)
 // Show verbose plugin logging only when displaying help
-var commands = CommandLoader.LoadCommands(logger, verbosePluginLogging: showingHelp);
+var commands = CommandLoader.LoadCommands(logger, verbosePluginLogging: args.Length == 0 || args[0] == "update");
 
 // Register Help command for use in BaseCommandGroup
-var helpCommand = CommandLoader.FindCommand(commands, "help") as Help;
+var helpCommand = CommandLoader.FindCommand<Help>(commands, "help");
 if (helpCommand is not null)
 {
-    services.RegisterSingleton<Help>(helpCommand);
+    services.RegisterSingleton(helpCommand);
 }
 
 // If no arguments or "help" is provided, show help
-if (showingHelp)
+if (args.Length > 0 && args[0].Equals("help", StringComparison.OrdinalIgnoreCase))
 {
     if (helpCommand is not null)
     {
@@ -32,15 +29,12 @@ if (showingHelp)
 }
 
 // Find the matching command
-var command = CommandLoader.FindCommand(commands, args[0]);
+var command = args.Length > 0 ? CommandLoader.FindCommand(commands, args[0]) : null;
 
 if (command is null)
 {
-    // Unknown command - show help with args as search keywords
-    if (helpCommand is not null)
-    {
-        await helpCommand.ExecuteAsync(args, services);
-    }
+    helpCommand?.WriteTitleLine(logger);
+    helpCommand?.WriteHelpLine(logger);
 }
 else
 {

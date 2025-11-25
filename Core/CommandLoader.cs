@@ -85,4 +85,9 @@ public class CommandLoader
     {
         return commands.FirstOrDefault(c => CommandMetadata.MatchesName(c, commandName));
     }
+
+    public static T FindCommand<T>(List<ICommand> commands, string commandName) where T : class, ICommand
+    {
+        return FindCommand(commands, commandName) as T;
+    }
 }

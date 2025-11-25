@@ -1,6 +1,6 @@
 namespace Rauch.Commands;
 
-[Command("help", "Show this help text")]
+[Command("help", "Show help text")]
 public class Help : ICommand
 {
     private readonly IEnumerable<ICommand> _availableCommands;
@@ -97,10 +97,7 @@ public class Help : ICommand
 
         var logger = services.GetService<ILogger>();
 
-        logger?.Write();
-        logger?.Write(" >_ ", newLine: false, color: ConsoleColor.DarkCyan);
-        logger?.Write("rauch", color: ConsoleColor.Cyan);
-        logger?.Write();
+        WriteTitleLine(logger);
 
         foreach (var group in groups.Values.OrderBy(x => x.name))
         {
@@ -124,20 +121,37 @@ public class Help : ICommand
             logger?.Write();
         }
 
-        foreach (var command in _availableCommands.Where(c => c is not ICommandGroup && !CommandMetadata.IsHidden(c)).OrderBy(c => CommandMetadata.GetName(c)))
+        foreach (var command in _availableCommands.Where(c => c is not ICommandGroup && !CommandMetadata.IsHidden(c)).OrderBy(CommandMetadata.GetName))
         {
-            if (!Filter(CommandMetadata.GetName(command)))
+            if (Filter(CommandMetadata.GetName(command)))
             {
-                continue;
+                WriteHelpLine(logger, command);
             }
-
-            var usage = CommandMetadata.GetUsage(command);
-            var desc = CommandMetadata.GetDescription(command);
-            logger?.Write($"  {usage[6..],-15}", newLine: false, color: ConsoleColor.Yellow);
-            logger?.Write(desc);
-            logger?.Write();
         }
 
         return Task.CompletedTask;
+    }
+
+    public void WriteTitleLine(ILogger logger)
+    {
+        logger?.Write();
+        logger?.Write(" >_ ", newLine: false, color: ConsoleColor.DarkCyan);
+        logger?.Write("rauch", color: ConsoleColor.Cyan);
+        logger?.Write();
+
+    }
+
+    public void WriteHelpLine(ILogger logger)
+    {
+        WriteHelpLine(logger, this);
+    }
+
+    static void WriteHelpLine(ILogger logger, ICommand command)
+    {
+        var usage = CommandMetadata.GetUsage(command);
+        var desc = CommandMetadata.GetDescription(command);
+        logger?.Write($"  {usage[6..],-15}", newLine: false, color: ConsoleColor.Yellow);
+        logger?.Write(desc);
+        logger?.Write();
     }
 }
