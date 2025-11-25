@@ -1,3 +1,5 @@
+using Rauch.Commands;
+
 namespace Rauch.Core;
 
 /// <summary>
@@ -24,10 +26,12 @@ public abstract class BaseCommandGroup : ICommandGroup
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
+        var groupName = CommandMetadata.GetName(this);
 
         if (args.Length == 0)
         {
-            ShowSubCommandHelp(logger);
+            // No subcommand - show help filtered by group name
+            await ShowHelpWithSearch(services, [groupName], ct);
             return;
         }
 
@@ -43,7 +47,7 @@ public abstract class BaseCommandGroup : ICommandGroup
             if (!validationResult.IsValid)
             {
                 logger?.Error($"Validation error: {validationResult.ErrorMessage}");
-                logger?.Info($"Usage: {CommandMetadata.GetUsage(subCommand, CommandMetadata.GetName(this))}");
+                logger?.Info($"Usage: {CommandMetadata.GetUsage(subCommand, groupName)}");
                 return;
             }
 
@@ -51,35 +55,17 @@ public abstract class BaseCommandGroup : ICommandGroup
         }
         else
         {
-            logger?.Error($"Unknown subcommand: {subCommandName}");
-            ShowSubCommandHelp(logger);
+            // Unknown subcommand - show help filtered by group name and subcommand name
+            await ShowHelpWithSearch(services, [groupName, subCommandName], ct);
         }
     }
 
-    private void ShowSubCommandHelp(ILogger logger = null)
+    private static async Task ShowHelpWithSearch(IServiceProvider services, string[] searchTerms, CancellationToken ct)
     {
-        if (!_subCommands.Any())
+        var helpCommand = services.GetService<Help>();
+        if (helpCommand is not null)
         {
-            var name = CommandMetadata.GetName(this);
-            logger?.Warning($"Warning: No subcommands found for '{name}'.");
-            return;
-        }
-
-        logger?.Error("Error: No subcommand specified.");
-        logger?.Info($"Usage: {CommandMetadata.GetUsage(this)}");
-        logger?.Write();
-        logger?.Write("Available subcommands:");
-
-        foreach (var subCmd in _subCommands.OrderBy(c => CommandMetadata.GetName(c)))
-        {
-            // Skip hidden commands
-            if (CommandMetadata.IsHidden(subCmd))
-                continue;
-
-            var name = CommandMetadata.GetName(subCmd);
-            var desc = CommandMetadata.GetDescription(subCmd);
-
-            logger?.Write($"  {name,-15} {desc}");
+            await helpCommand.ExecuteAsync(searchTerms, services, ct);
         }
     }
 

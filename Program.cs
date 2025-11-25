@@ -14,10 +14,16 @@ var showingHelp = args.Length == 0 || args[0].Equals("help", StringComparison.Or
 // Show verbose plugin logging only when displaying help
 var commands = CommandLoader.LoadCommands(logger, verbosePluginLogging: showingHelp);
 
+// Register Help command for use in BaseCommandGroup
+var helpCommand = CommandLoader.FindCommand(commands, "help") as Help;
+if (helpCommand is not null)
+{
+    services.RegisterSingleton<Help>(helpCommand);
+}
+
 // If no arguments or "help" is provided, show help
 if (showingHelp)
 {
-    var helpCommand = CommandLoader.FindCommand(commands, "help");
     if (helpCommand is not null)
     {
         await helpCommand.ExecuteAsync([], services);
@@ -30,8 +36,11 @@ var command = CommandLoader.FindCommand(commands, args[0]);
 
 if (command is null)
 {
-    logger.Error($"Unknown command: {args[0]}");
-    logger.Info("Use 'rauch help' for more information.");
+    // Unknown command - show help with args as search keywords
+    if (helpCommand is not null)
+    {
+        await helpCommand.ExecuteAsync(args, services);
+    }
 }
 else
 {

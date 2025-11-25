@@ -14,6 +14,7 @@ public class Help : ICommand
     {
         public string name;
         public string description;
+        public bool forceVisible;
         public Dictionary<string, CommandInfo> commands;
     }
 
@@ -26,30 +27,68 @@ public class Help : ICommand
 
     public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
+        var searchTerms = args.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+
+        bool Filter(string term)
+        {
+            if (searchTerms.Count > 0)
+            {
+                if (!searchTerms.Any(x => term.Contains(x, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        bool FilterExact(string term)
+        {
+            if (searchTerms.Count > 0)
+            {
+                if (!searchTerms.All(x => term.Equals(x, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         var groups = new Dictionary<string, GroupInfo>();
 
         foreach (var group in _availableCommands.OfType<ICommandGroup>().Where(c => !CommandMetadata.IsHidden(c)))
         {
-            var name = CommandMetadata.GetName(group);
-            var description = CommandMetadata.GetDescription(group);
+            var groupName = CommandMetadata.GetName(group);
+            var groupDescription = CommandMetadata.GetDescription(group);
 
-            if (!groups.TryGetValue(name, out var groupInfo))
+            if (!groups.TryGetValue(groupName, out var groupInfo))
             {
                 groupInfo = new()
                 {
-                    name = name,
-                    description = description,
+                    name = groupName,
+                    description = groupDescription,
+                    forceVisible = Filter(groupName),
                     commands = []
                 };
-                groups.Add(name, groupInfo);
+
+                groups.Add(groupName, groupInfo);
             }
+
+            var exactMatch = FilterExact(groupName);
 
             foreach (var command in group.SubCommands)
             {
-                name = CommandMetadata.GetName(command);
-                groupInfo.commands.Add(name, new()
+                var commandName = CommandMetadata.GetName(command);
+
+                if (!exactMatch && !Filter(commandName))
                 {
-                    name = name,
+                    continue;
+                }
+
+                groupInfo.commands.Add(commandName, new()
+                {
+                    name = commandName,
                     description = CommandMetadata.GetDescription(command),
                     type = command.GetType().Namespace.Contains(".Plugins.") ? "Plugin" : "Core"
                 });
@@ -65,6 +104,11 @@ public class Help : ICommand
 
         foreach (var group in groups.Values.OrderBy(x => x.name))
         {
+            if (!group.forceVisible && group.commands.Count == 0)
+            {
+                continue;
+            }
+
             logger?.Write($"  {group.name,-15}", newLine: false, color: ConsoleColor.Yellow);
             logger?.Write(group.description, newLine: false);
             logger?.Write();
@@ -82,6 +126,11 @@ public class Help : ICommand
 
         foreach (var command in _availableCommands.Where(c => c is not ICommandGroup && !CommandMetadata.IsHidden(c)).OrderBy(c => CommandMetadata.GetName(c)))
         {
+            if (!Filter(CommandMetadata.GetName(command)))
+            {
+                continue;
+            }
+
             var usage = CommandMetadata.GetUsage(command);
             var desc = CommandMetadata.GetDescription(command);
             logger?.Write($"  {usage[6..],-15}", newLine: false, color: ConsoleColor.Yellow);
