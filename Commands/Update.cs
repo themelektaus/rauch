@@ -158,7 +158,14 @@ exit
                         var content = await fileResponse.Content.ReadAsStringAsync(ct);
                         var targetPath = Path.Combine(pluginsDir, file.Name);
 
-                        await File.WriteAllTextAsync(targetPath, content, ct);
+                        if (file.Name.EndsWith(".ps1"))
+                        {
+                            await File.WriteAllTextAsync(targetPath, content, new UTF8Encoding(true), ct);
+                        }
+                        else
+                        {
+                            await File.WriteAllTextAsync(targetPath, content, ct);
+                        }
                         downloadedFiles.Add(file.Name);
                         logger?.Debug($"  ✓ {file.Name}");
                     }

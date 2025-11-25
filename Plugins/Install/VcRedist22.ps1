@@ -1,4 +1,4 @@
-$currentIdentity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+﻿$currentIdentity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 $administratorRole = [Security.Principal.WindowsBuiltInRole]::Administrator
 
 if ($currentIdentity.IsInRole($administratorRole))

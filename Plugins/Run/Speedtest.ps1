@@ -1,4 +1,4 @@
-Set-Variable ProgressPreference SilentlyContinue
+﻿Set-Variable ProgressPreference SilentlyContinue
 
 function Set-WorkingDirectory($path)
 {
