@@ -30,6 +30,10 @@
     <EmbeddedResource Remove="Build\**" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="Plugins\Install\RustDesk.cs.bak" />
+  </ItemGroup>
+
   <!-- Generate Usings.g.cs from Usings.cs during build -->
   <Target Name="Usings" BeforeTargets="CoreCompile">
     <PropertyGroup>

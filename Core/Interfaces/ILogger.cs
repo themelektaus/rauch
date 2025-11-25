@@ -41,4 +41,6 @@ public interface ILogger
     void WriteLine(string message, ConsoleColor? color = null);
 
     void Exit(int exitCode);
+
+    string Question(string message, string[] possibleValues, string defaultValue);
 }
