@@ -1,14 +1,12 @@
-using System.Text.Json;
-
 namespace Rauch.Commands;
 
 [Command("update", "Update rauch to the latest version from GitHub")]
 public class Update : ICommand
 {
     private const string GitHubRawUrl = "https://raw.githubusercontent.com/themelektaus/rauch/main/Build/Windows/rauch.exe";
-    private const string GitHubApiUrl = "https://api.github.com/repos/themelektaus/rauch/contents/Plugins";
-    private const string GitHubRawPluginBase = "https://raw.githubusercontent.com/themelektaus/rauch/main/Plugins/";
+    private const string GitHubPluginsZipUrl = "https://raw.githubusercontent.com/themelektaus/rauch/main/Build/Plugins.zip";
     private const string TempFileName = "rauch.exe.new";
+    private const string PluginsZipFileName = "Plugins.zip";
 
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
@@ -53,17 +51,17 @@ public class Update : ICommand
             await File.WriteAllBytesAsync(tempFilePath, newFileBytes, ct);
             logger?.Debug($"Saved to: {tempFilePath}");
 
-            // Step 2: Download plugin files
-            logger?.Info("Downloading plugin files from GitHub...");
-            var pluginFiles = await DownloadPluginFiles(httpClient, pluginsDir, logger, ct);
+            // Step 2: Download and extract plugins
+            logger?.Info("Downloading plugins from GitHub...");
+            var pluginsSuccess = await DownloadAndExtractPlugins(httpClient, currentDir, pluginsDir, logger, ct);
 
-            if (pluginFiles.Count > 0)
+            if (pluginsSuccess)
             {
-                logger?.Success($"Downloaded {pluginFiles.Count} plugin file(s)");
+                logger?.Success("Plugins downloaded and extracted successfully");
             }
             else
             {
-                logger?.Warning("No plugin files found or download failed");
+                logger?.Warning("Plugin download failed");
             }
 
             // Create update script
@@ -107,159 +105,60 @@ exit
         }
     }
 
-    private async Task<List<string>> DownloadPluginFiles(HttpClient httpClient, string pluginsDir, ILogger logger, CancellationToken ct)
+    private async Task<bool> DownloadAndExtractPlugins(HttpClient httpClient, string currentDir, string pluginsDir, ILogger logger, CancellationToken ct)
     {
-        var downloadedFiles = new List<string>();
-
         try
         {
-            // Ensure Plugins directory exists
-            if (!Directory.Exists(pluginsDir))
+            var zipPath = Path.Combine(currentDir, PluginsZipFileName);
+
+            // Download Plugins.zip
+            logger?.Debug($"URL: {GitHubPluginsZipUrl}");
+            var response = await httpClient.GetAsync(GitHubPluginsZipUrl, ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger?.Warning($"Failed to download plugins: HTTP {(int) response.StatusCode}");
+                return false;
+            }
+
+            var zipBytes = await response.Content.ReadAsByteArrayAsync(ct);
+            await File.WriteAllBytesAsync(zipPath, zipBytes, ct);
+            logger?.Debug($"Downloaded Plugins.zip ({zipBytes.Length:N0} bytes)");
+
+            // Clear existing plugins directory
+            if (Directory.Exists(pluginsDir))
+            {
+                // Delete all files and subdirectories except .cache
+                foreach (var file in Directory.GetFiles(pluginsDir))
+                {
+                    File.Delete(file);
+                }
+                foreach (var dir in Directory.GetDirectories(pluginsDir))
+                {
+                    if (!Path.GetFileName(dir).Equals(".cache", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Directory.Delete(dir, true);
+                    }
+                }
+            }
+            else
             {
                 Directory.CreateDirectory(pluginsDir);
             }
 
-            // Get list of files from GitHub API
-            logger?.Debug($"Fetching plugin list from: {GitHubApiUrl}");
-            var response = await httpClient.GetAsync(GitHubApiUrl, ct);
+            // Extract ZIP to plugins directory
+            ZipFile.ExtractToDirectory(zipPath, pluginsDir, true);
+            logger?.Debug($"Extracted plugins to: {pluginsDir}");
 
-            if (!response.IsSuccessStatusCode)
-            {
-                logger?.Warning($"Failed to fetch plugin list: HTTP {(int) response.StatusCode}");
-                return downloadedFiles;
-            }
+            // Clean up ZIP file
+            File.Delete(zipPath);
 
-            var jsonContent = await response.Content.ReadAsStringAsync(ct);
-
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
-            var items = JsonSerializer.Deserialize<List<GitHubFile>>(jsonContent, options);
-
-            if (items == null || items.Count == 0)
-            {
-                logger?.Debug("No plugin files found in repository");
-                return downloadedFiles;
-            }
-
-            // Download root-level .cs and .ps1 files
-            foreach (var file in items.Where(f => f.Type == "file" && (f.Name.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || f.Name.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))))
-            {
-                try
-                {
-                    logger?.Debug($"Downloading: {file.Name}");
-                    var downloadUrl = $"{GitHubRawPluginBase}{file.Name}";
-                    var fileResponse = await httpClient.GetAsync(downloadUrl, ct);
-
-                    if (fileResponse.IsSuccessStatusCode)
-                    {
-                        var content = await fileResponse.Content.ReadAsStringAsync(ct);
-                        var targetPath = Path.Combine(pluginsDir, file.Name);
-
-                        if (file.Name.EndsWith(".ps1"))
-                        {
-                            await File.WriteAllTextAsync(targetPath, content, new UTF8Encoding(true), ct);
-                        }
-                        else
-                        {
-                            await File.WriteAllTextAsync(targetPath, content, ct);
-                        }
-                        downloadedFiles.Add(file.Name);
-                        logger?.Debug($"  ✓ {file.Name}");
-                    }
-                    else
-                    {
-                        logger?.Warning($"  ✗ Failed to download {file.Name}: HTTP {(int) fileResponse.StatusCode}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger?.Warning($"  ✗ Error downloading {file.Name}: {ex.Message}");
-                }
-            }
-
-            // Download subdirectories (1 level)
-            foreach (var dir in items.Where(d => d.Type == "dir"))
-            {
-                try
-                {
-                    logger?.Debug($"Processing subdirectory: {dir.Name}");
-
-                    // Create subdirectory
-                    var subDirPath = Path.Combine(pluginsDir, dir.Name);
-                    if (!Directory.Exists(subDirPath))
-                    {
-                        Directory.CreateDirectory(subDirPath);
-                    }
-
-                    // Fetch contents of subdirectory
-                    var subDirUrl = $"{GitHubApiUrl}/{dir.Name}";
-                    var subDirResponse = await httpClient.GetAsync(subDirUrl, ct);
-
-                    if (!subDirResponse.IsSuccessStatusCode)
-                    {
-                        logger?.Warning($"  ✗ Failed to fetch {dir.Name}: HTTP {(int) subDirResponse.StatusCode}");
-                        continue;
-                    }
-
-                    var subDirJson = await subDirResponse.Content.ReadAsStringAsync(ct);
-                    var subDirFiles = JsonSerializer.Deserialize<List<GitHubFile>>(subDirJson, options);
-
-                    if (subDirFiles == null || subDirFiles.Count == 0)
-                    {
-                        logger?.Debug($"  No files in {dir.Name}");
-                        continue;
-                    }
-
-                    // Download .cs and .ps1 files from subdirectory
-                    foreach (var file in subDirFiles.Where(f => f.Type == "file" && (f.Name.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || f.Name.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase))))
-                    {
-                        try
-                        {
-                            logger?.Debug($"  Downloading: {dir.Name}/{file.Name}");
-                            var downloadUrl = $"{GitHubRawPluginBase}{dir.Name}/{file.Name}";
-                            var fileResponse = await httpClient.GetAsync(downloadUrl, ct);
-
-                            if (fileResponse.IsSuccessStatusCode)
-                            {
-                                var content = await fileResponse.Content.ReadAsStringAsync(ct);
-                                var targetPath = Path.Combine(subDirPath, file.Name);
-
-                                await File.WriteAllTextAsync(targetPath, content, ct);
-                                downloadedFiles.Add($"{dir.Name}/{file.Name}");
-                                logger?.Debug($"    ✓ {dir.Name}/{file.Name}");
-                            }
-                            else
-                            {
-                                logger?.Warning($"    ✗ Failed to download {dir.Name}/{file.Name}: HTTP {(int) fileResponse.StatusCode}");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            logger?.Warning($"    ✗ Error downloading {dir.Name}/{file.Name}: {ex.Message}");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger?.Warning($"  ✗ Error processing subdirectory {dir.Name}: {ex.Message}");
-                }
-            }
+            return true;
         }
         catch (Exception ex)
         {
-            logger?.Warning($"Failed to download plugins: {ex.Message}");
+            logger?.Warning($"Failed to download/extract plugins: {ex.Message}");
+            return false;
         }
-
-        return downloadedFiles;
-    }
-
-    private class GitHubFile
-    {
-        public string Name { get; set; }
-        public string Type { get; set; }
-        public string Download_Url { get; set; }
     }
 }

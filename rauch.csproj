@@ -30,10 +30,6 @@
     <EmbeddedResource Remove="Build\**" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="Plugins\Install\RustDesk.cs.bak" />
-  </ItemGroup>
-
   <!-- Generate Usings.g.cs from Usings.cs during build -->
   <Target Name="Usings" BeforeTargets="CoreCompile">
     <PropertyGroup>
@@ -45,6 +41,15 @@
     <ItemGroup>
       <Compile Include="$(GeneratedUsingsFile)" Condition="!Exists('$(GeneratedUsingsFile)')" />
     </ItemGroup>
+  </Target>
+
+  <Target Name="PackPlugins" BeforeTargets="Publish">
+    <PropertyGroup>
+      <ScriptFile>$(MSBuildProjectDirectory)\PackPlugins.ps1</ScriptFile>
+      <SourceFolder>$(MSBuildProjectDirectory)\Plugins</SourceFolder>
+      <OutputFile>$(MSBuildProjectDirectory)\Build\Plugins.zip</OutputFile>
+    </PropertyGroup>
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(ScriptFile)&quot; -SourceFolder &quot;$(SourceFolder)&quot; -OutputFile &quot;$(OutputFile)&quot;" />
   </Target>
 
 </Project>
