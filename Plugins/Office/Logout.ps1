@@ -1,3 +1,17 @@
+﻿<#
+.SYNOPSIS
+    Meldet einen Benutzer von allen Microsoft-Diensten lokal ab.
+.DESCRIPTION
+    Entfernt Credentials, Tokens und Cache für:
+    - Microsoft 365 / Azure AD
+    - Outlook
+    - Teams
+    - OneDrive
+    - Office-Anwendungen
+.PARAMETER UserName
+    Optional: Benutzername des Profils (Standard: aktueller Benutzer)
+#>
+
 param(
     [string]$UserName = $env:USERNAME
 )
