@@ -18,7 +18,6 @@ if (helpCommand is not null)
     services.RegisterSingleton(helpCommand);
 }
 
-// If no arguments or "help" is provided, show help
 if (args.Length > 0 && args[0].Equals("help", StringComparison.OrdinalIgnoreCase))
 {
     if (helpCommand is not null)
@@ -28,13 +27,25 @@ if (args.Length > 0 && args[0].Equals("help", StringComparison.OrdinalIgnoreCase
     return;
 }
 
-// Find the matching command
-var command = args.Length > 0 ? CommandLoader.FindCommand(commands, args[0]) : null;
-
-if (command is null)
+if (args.Length == 0)
 {
     helpCommand?.WriteTitleLine(logger);
     helpCommand?.WriteHelpLine(logger);
+    return;
+}
+
+
+
+// Find the matching command
+var command = CommandLoader.FindCommand(commands, args[0]);
+
+if (command is null)
+{
+    // Unknown command - show help with args as search keywords
+    if (helpCommand is not null)
+    {
+        await helpCommand.ExecuteAsync(args, services);
+    }
 }
 else
 {
