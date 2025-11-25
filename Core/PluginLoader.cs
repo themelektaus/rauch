@@ -95,15 +95,11 @@ public class PluginLoader
             }
         }
 
-        // Show summary if verbose or if any plugin was compiled
-        var needsCompilation = compilationInfo.Any(i => i.wasCompiled);
-        if (verboseLogging || needsCompilation)
+        // Show summary if verbose
+        if (verboseLogging)
         {
             var totalFiles = rootFiles.Length + subdirectories.Length;
-            var message = needsCompilation
-                ? $"Found {totalFiles} file(s), compiling..."
-                : $"Found {totalFiles} file(s), loading...";
-            _logger?.Info(message);
+            _logger?.Info($"Found {totalFiles} file(s), loading...");
 
             foreach (var info in compilationInfo)
             {
@@ -167,8 +163,7 @@ public class PluginLoader
             }
         }
 
-        // Need to compile
-        _logger?.Debug($"Compiling {name}...");
+        _logger?.Write($"Compiling {name}...");
 
         var commands = CompileAndLoadPlugin(name, cachedDllPath, sourceCode);
 
@@ -208,8 +203,7 @@ public class PluginLoader
             }
         }
 
-        // Need to compile
-        _logger?.Debug($"Compiling {groupName}...");
+        _logger?.Write($"Compiling {groupName}...");
 
         var commands = CompileAndLoadPluginGroup(groupName, cachedDllPath, csFiles);
 

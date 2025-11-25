@@ -58,35 +58,35 @@ public class Help : ICommand
 
         var logger = services.GetService<ILogger>();
 
-        logger?.WriteLine("");
-        logger?.Write(" >_ ", ConsoleColor.DarkCyan);
-        logger?.WriteLine("rauch", ConsoleColor.Cyan);
-        logger?.WriteLine("");
+        logger?.Write();
+        logger?.Write(" >_ ", newLine: false, color: ConsoleColor.DarkCyan);
+        logger?.Write("rauch", color: ConsoleColor.Cyan);
+        logger?.Write();
 
         foreach (var group in groups.Values.OrderBy(x => x.name))
         {
-            logger?.Write($"  {group.name,-15}", ConsoleColor.Yellow);
-            logger?.Write(group.description);
-            logger?.WriteLine("");
+            logger?.Write($"  {group.name,-15}", newLine: false, color: ConsoleColor.Yellow);
+            logger?.Write(group.description, newLine: false);
+            logger?.Write();
 
             foreach (var command in group.commands.Values.OrderBy(x => x.name))
             {
-                logger?.Write($"    └─ ");
-                logger?.Write($"{command.name,-13} ", ConsoleColor.DarkYellow);
-                logger?.Write($"{command.type,-10}", ConsoleColor.DarkGray);
-                logger?.Write(command.description);
-                logger?.WriteLine("");
+                logger?.Write($"    └─ ", newLine: false);
+                logger?.Write($"{command.name,-13} ", newLine: false, color: ConsoleColor.DarkYellow);
+                logger?.Write($"{command.type,-10}", newLine: false, color: ConsoleColor.DarkGray);
+                logger?.Write(command.description, newLine: false);
+                logger?.Write();
             }
-            logger?.WriteLine("");
+            logger?.Write();
         }
 
         foreach (var command in _availableCommands.Where(c => c is not ICommandGroup && !CommandMetadata.IsHidden(c)).OrderBy(c => CommandMetadata.GetName(c)))
         {
             var usage = CommandMetadata.GetUsage(command);
             var desc = CommandMetadata.GetDescription(command);
-            logger?.Write($"  {usage[6..],-15}", ConsoleColor.Yellow);
-            logger?.WriteLine(desc);
-            logger?.WriteLine("");
+            logger?.Write($"  {usage[6..],-15}", newLine: false, color: ConsoleColor.Yellow);
+            logger?.Write(desc);
+            logger?.Write();
         }
 
         return Task.CompletedTask;

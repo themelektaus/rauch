@@ -12,94 +12,71 @@ public class ConsoleLogger : ILogger
         _enableColors = enableColors;
     }
 
-    public void Info(string message)
+    public void Info(string message, bool newLine = true)
     {
-        WriteLineColored(message, ConsoleColor.Cyan);
+        Write(message, newLine, ConsoleColor.Cyan);
     }
 
-    public void Success(string message)
+    public void Success(string message, bool newLine = true)
     {
-        WriteLineColored(message, ConsoleColor.Green);
+        Write(message, newLine, ConsoleColor.Green);
     }
 
-    public void Warning(string message)
+    public void Warning(string message, bool newLine = true)
     {
-        WriteLineColored(message, ConsoleColor.Yellow);
+        Write(message, newLine, ConsoleColor.Yellow);
     }
 
-    public void Error(string message)
+    public void Error(string message, bool newLine = true)
     {
-        WriteLineColored(message, ConsoleColor.Red);
+        Write(message, newLine, ConsoleColor.Red);
     }
 
-    public void Debug(string message)
+    public void Debug(string message, bool newLine = true)
     {
-        WriteLineColored(message, ConsoleColor.DarkGray);
+
+#if DEBUG
+        Write(message, newLine, ConsoleColor.DarkGray);
+#endif
     }
 
-    public void Write(string message, ConsoleColor? color = null)
+    public void Write(string message = "", bool newLine = true, ConsoleColor? color = null)
     {
         if (color.HasValue)
         {
-            WriteColored(message, color.Value);
-        }
-        else
-        {
-            Console.Write(message);
-        }
-    }
-
-    public void WriteLine(string message, ConsoleColor? color = null)
-    {
-        if (color.HasValue)
-        {
-            WriteLineColored(message, color.Value);
-        }
-        else
-        {
-            Console.WriteLine(message);
-        }
-    }
-
-    void WriteColored(string message, ConsoleColor color)
-    {
-        if (_enableColors)
-        {
-            var previousColor = Console.ForegroundColor;
-            try
+            if (_enableColors)
             {
-                Console.ForegroundColor = color;
-                Console.Write(message);
+                var previousColor = Console.ForegroundColor;
+                try
+                {
+                    Console.ForegroundColor = color.Value;
+                    Write();
+                }
+                finally
+                {
+                    Console.ForegroundColor = previousColor;
+                }
             }
-            finally
+            else
             {
-                Console.ForegroundColor = previousColor;
+                Write();
             }
         }
         else
         {
-            Console.WriteLine(message);
+            Write();
         }
-    }
 
-    void WriteLineColored(string message, ConsoleColor color)
-    {
-        if (_enableColors)
+        void Write()
         {
-            var previousColor = Console.ForegroundColor;
-            try
+            if (newLine)
             {
-                Console.ForegroundColor = color;
                 Console.WriteLine(message);
             }
-            finally
+            else
             {
-                Console.ForegroundColor = previousColor;
+                Console.Write(message);
             }
-        }
-        else
-        {
-            Console.WriteLine(message);
         }
     }
 
@@ -119,7 +96,8 @@ public class ConsoleLogger : ILogger
 
     public string Question(string message, string[] possibleValues, string defaultValue)
     {
-        Console.Write(message + " ");
+        Write();
+        Write(message + " ", newLine: false);
 
         var values = possibleValues?.ToList() ?? [];
 
@@ -127,7 +105,7 @@ public class ConsoleLogger : ILogger
         {
             if (defaultValue is not null)
             {
-                Console.Write($"[{defaultValue}] ");
+                Write($"[{defaultValue}] ", newLine: false);
             }
         }
         else
@@ -143,7 +121,7 @@ public class ConsoleLogger : ILogger
                 }
             }
 
-            Console.Write($"({string.Join("/", values)}) ");
+            Write($"({string.Join("/", values)}) ", newLine: false);
         }
 
         string input = string.Empty;
@@ -157,7 +135,7 @@ public class ConsoleLogger : ILogger
             Console.SetCursorPosition(x, y);
             for (var i = 0; i < input.Length; i++)
             {
-                Console.Write(" ");
+                Write(" ", newLine: false);
             }
             Console.SetCursorPosition(x, y);
 

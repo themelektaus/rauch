@@ -106,12 +106,12 @@ public static class CommandUtils
 
     public static Task<int> ExecutePowershellCommand(string command, CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
     {
-        return ExecutePowershellInternal($"-Command \"{command.Replace("\"", "\\\"")}\"", flags, logger, ct);
+        return ExecutePowershellInternal(command, $"-Command \"{command.Replace("\"", "\\\"")}\"", flags, logger, ct);
     }
 
     public static Task<int> ExecutePowershellFile(string file, string arguments = "", CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
     {
-        return ExecutePowershellInternal($"-File \"{file}\" {arguments}", flags, logger, ct);
+        return ExecutePowershellInternal($"{file} {arguments}", $"-File \"{file}\" {arguments}", flags, logger, ct);
     }
 
     public static async Task<int> ExecutePowershellFile<T>(string arguments = "", CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
@@ -120,7 +120,8 @@ public static class CommandUtils
         var n = t.Namespace;
         n = n[0].ToString().ToLowerInvariant() + n[1..];
 
-        var name = $"{n}.{t.Name}.ps1";
+        var file = $"{t.Name}.ps1";
+        var name = $"{n}.{file}";
 
         using var stream = t.Assembly.GetManifestResourceStream(name);
 
@@ -136,16 +137,17 @@ public static class CommandUtils
         var tempScriptPath = Path.Combine(Path.GetTempFileName() + ".ps1");
         await File.WriteAllTextAsync(tempScriptPath, scriptContent, ct);
 
-        var exitCode = await ExecutePowershellInternal($"-File \"{tempScriptPath}\" {arguments}", flags, logger, ct);
+        var exitCode = await ExecutePowershellInternal($"{file} {arguments}", $"-File \"{tempScriptPath}\" {arguments}", flags, logger, ct);
 
         try { File.Delete(tempScriptPath); } catch { }
 
         return exitCode;
     }
 
-    static async Task<int> ExecutePowershellInternal(string arguments, CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
+    static async Task<int> ExecutePowershellInternal(string info, string arguments, CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
     {
-        return await StartProcess(
+        return await StartProcessInternal(
+            info,
             "powershell.exe",
             $"{(flags.HasFlag(CommandFlags.NoProfile) ? "-NoProfile" : "")} -ExecutionPolicy Bypass {arguments}",
             flags,
@@ -154,13 +156,16 @@ public static class CommandUtils
         );
     }
 
-    public static async Task<int> StartProcess(string filePath, string arguments = "", CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
+    public static Task<int> StartProcess(string filePath, string arguments = "", CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
+    {
+        return StartProcessInternal($"{filePath} {arguments}", filePath, arguments, flags, logger, ct);
+    }
+
+    static async Task<int> StartProcessInternal(string info, string filePath, string arguments = "", CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
     {
         try
         {
-            var name = Path.GetFileNameWithoutExtension(filePath);
-
-            logger?.Info($"Starting {name} ...");
+            logger?.Info($"PS> {info}");
 
             var startInfo = new ProcessStartInfo
             {
@@ -174,11 +179,11 @@ public static class CommandUtils
 
             if (process is null)
             {
-                logger?.Error($"Failed to start {name}");
+                logger?.Error($"Failed");
                 return -2;
             }
 
-            logger?.Success($"{Path.GetFileName(filePath)} started successfully.");
+            logger?.Success("OK");
 
             await process.WaitForExitAsync(ct);
 

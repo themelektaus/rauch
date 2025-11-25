@@ -8,37 +8,29 @@ public interface ILogger
     /// <summary>
     /// Logs an informational message
     /// </summary>
-    void Info(string message);
+    void Info(string message, bool newLine = true);
 
     /// <summary>
     /// Logs a success message
     /// </summary>
-    void Success(string message);
+    void Success(string message, bool newLine = true);
 
     /// <summary>
     /// Logs a warning
     /// </summary>
-    void Warning(string message);
+    void Warning(string message, bool newLine = true);
 
     /// <summary>
     /// Logs an error
     /// </summary>
-    void Error(string message);
+    void Error(string message, bool newLine = true);
 
     /// <summary>
     /// Logs a debug message
     /// </summary>
-    void Debug(string message);
+    void Debug(string message, bool newLine = true);
 
-    /// <summary>
-    /// Writes a message without additional formatting
-    /// </summary>
-    void Write(string message, ConsoleColor? color = null);
-
-    /// <summary>
-    /// Writes a line without additional formatting
-    /// </summary>
-    void WriteLine(string message, ConsoleColor? color = null);
+    void Write(string message = "", bool newLine = true, ConsoleColor? color = null);
 
     void Exit(int exitCode);
 

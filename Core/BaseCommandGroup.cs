@@ -67,8 +67,8 @@ public abstract class BaseCommandGroup : ICommandGroup
 
         logger?.Error("Error: No subcommand specified.");
         logger?.Info($"Usage: {CommandMetadata.GetUsage(this)}");
-        logger?.WriteLine("");
-        logger?.WriteLine("Available subcommands:");
+        logger?.Write();
+        logger?.Write("Available subcommands:");
 
         foreach (var subCmd in _subCommands.OrderBy(c => CommandMetadata.GetName(c)))
         {
@@ -79,7 +79,7 @@ public abstract class BaseCommandGroup : ICommandGroup
             var name = CommandMetadata.GetName(subCmd);
             var desc = CommandMetadata.GetDescription(subCmd);
 
-            logger?.WriteLine($"  {name,-15} {desc}");
+            logger?.Write($"  {name,-15} {desc}");
         }
     }
 
