@@ -137,6 +137,7 @@ public class Help : ICommand
 
     public void WriteTitleLine(ILogger logger)
     {
+        SoundPlayer.PlayWhip();
         logger?.Write();
         logger?.Write(" >_ ", newLine: false, color: ConsoleColor.DarkCyan);
         logger?.Write("rauch", color: ConsoleColor.Cyan);

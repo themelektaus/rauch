@@ -19,16 +19,19 @@ public sealed class ConsoleLogger : ILogger
 
     public void Success(string message, bool newLine = true)
     {
+        SoundPlayer.PlaySuccess();
         Write(message, newLine, ConsoleColor.Green);
     }
 
     public void Warning(string message, bool newLine = true)
     {
+        SoundPlayer.PlayNope();
         Write(message, newLine, ConsoleColor.Yellow);
     }
 
     public void Error(string message, bool newLine = true)
     {
+        SoundPlayer.PlayError1();
         Write(message, newLine, ConsoleColor.Red);
     }
 

@@ -5,7 +5,6 @@ namespace Rauch.Plugins.Outlook;
 [Command("fix")]
 public class Fix : ICommand
 {
-    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
@@ -47,7 +46,6 @@ public class Fix : ICommand
         );
     }
 
-    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     static void SetCurrentUser(RegistryKey root, string path, string name, int? value, ILogger logger)
     {
         try

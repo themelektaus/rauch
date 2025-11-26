@@ -3,7 +3,6 @@ namespace Rauch.Plugins.Run;
 [Command("treesize")]
 public class TreeSize : ICommand
 {
-    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();

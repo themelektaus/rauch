@@ -92,7 +92,17 @@ public sealed class CSharpCompiler
 
         assemblies.TryAdd(assembly.GetName().FullName, assembly);
         foreach (var name in assembly.GetReferencedAssemblies())
-            assemblies.TryAdd(name.FullName, Assembly.Load(name));
+        {
+            try
+            {
+                assembly = Assembly.Load(name);
+                assemblies.TryAdd(name.FullName, assembly);
+            }
+            catch
+            {
+                // Ignore load failures
+            }
+        }
     }
 
     unsafe static PortableExecutableReference CreatePortableExecutableReference(Assembly @this)

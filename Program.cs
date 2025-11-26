@@ -1,5 +1,10 @@
 Environment.CurrentDirectory = AppContext.BaseDirectory;
 
+// Setup console appearance
+Console.CursorVisible = true;
+Console.ForegroundColor = ConsoleColor.Gray;
+Console.BackgroundColor = ConsoleColor.Black;
+
 // Setup dependency injection container
 var services = new ServiceContainer();
 
@@ -22,7 +27,7 @@ if (args.Length == 0)
 {
     helpCommand?.WriteTitleLine(logger);
     helpCommand?.WriteHelpLine(logger);
-    return;
+    goto Exit;
 }
 
 if (args.Length >= 1)
@@ -31,7 +36,7 @@ if (args.Length >= 1)
     if (command is not null)
     {
         await ValidateAndExecuteAsync(command, args.Skip(1).ToArray());
-        return;
+        goto Exit;
     }
 }
 
@@ -41,7 +46,7 @@ if (args.Length >= 2)
     if (command is not null)
     {
         await ValidateAndExecuteAsync(command, args.Skip(2).ToArray());
-        return;
+        goto Exit;
     }
 }
 
@@ -49,6 +54,9 @@ if (helpCommand is not null)
 {
     await helpCommand.ExecuteAsync(args, services);
 }
+
+Exit:
+await SoundPlayer.Wait();
 
 async Task ValidateAndExecuteAsync(ICommand command, string[] args)
 {
