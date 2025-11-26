@@ -2,7 +2,7 @@
 
 # rauch
 
-A modern .NET 10.0 command-line tool with dynamic plugin support, automatic command discovery, and interactive console UI.
+A modern .NET 10.0-windows command-line tool with dynamic plugin support, automatic command discovery, interactive console UI, and audio feedback.
 
 ## Features
 
@@ -14,12 +14,13 @@ A modern .NET 10.0 command-line tool with dynamic plugin support, automatic comm
 - **Dependency Injection**: Lightweight DI container for service management
 - **Color-Coded Logging**: Console output with different severity levels (Info, Success, Warning, Error, Debug)
 - **Interactive Console UI**: Arrow-key menu selection and text input prompts
+- **Audio Feedback**: Embedded sound effects for user feedback (success, error, confirmation sounds)
 
 ## Installation
 
 ### Prerequisites
 
-- .NET 10.0 or later
+- .NET 10.0 or later (Windows only)
 
 ### Powershell
 
@@ -206,6 +207,17 @@ The `ILogger` interface provides interactive methods:
 - `Choice(message, options, defaultIndex)`: Arrow-key menu selection, returns selected index
 - `Question(message, possibleValues, defaultValue, allowEmpty)`: Text input with validation
 
+### Sound Effects
+
+The `SoundPlayer` class provides audio feedback:
+
+- `SoundPlayer.PlaySuccess()`: Success completion sound
+- `SoundPlayer.PlayError1/2/3()`: Various error sounds
+- `SoundPlayer.PlayEnter()`: Enter/confirm sound
+- `SoundPlayer.PlayGranted()`: Access granted sound
+- `SoundPlayer.PlayNope()`: Rejection sound
+- `SoundPlayer.PlayWhip()`: Quick action sound
+
 ## Project Structure
 
 ```
@@ -256,7 +268,9 @@ rauch/
 │   ├── PluginLoader.cs   # Runtime plugin compilation
 │   ├── CommandUtils.cs   # Utility methods for plugins
 │   ├── ConsoleLogger.cs  # Logger with interactive UI
+│   ├── SoundPlayer.cs    # Audio feedback via embedded WAV sounds
 │   └── Attributes/       # Validation and metadata attributes
+├── Sounds/                # Sound effect files (embedded as resources)
 ├── LiveCode/              # Runtime C# compilation
 │   ├── CSharpCompiler.cs # Roslyn C# 13 compiler
 │   ├── AssemblyReference.cs # Assembly loading
@@ -336,15 +350,8 @@ This command is automatically available as `rauch run ping`.
 ## Dependencies
 
 - **Microsoft.CodeAnalysis.CSharp** (v4.12.0): Roslyn compiler for plugin system
+- **System.Windows.Extensions** (v9.0.0): Windows-specific APIs for SoundPlayer
 
 ## Documentation
 
 For detailed developer documentation, see [CLAUDE.md](CLAUDE.md).
-
-## License
-
-[Add your license here]
-
-## Contributing
-
-[Add contributing guidelines here]
