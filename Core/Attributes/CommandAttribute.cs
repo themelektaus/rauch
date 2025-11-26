@@ -4,7 +4,7 @@ namespace Rauch.Core.Attributes;
 /// Attribute for describing commands and subcommands
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
-public class CommandAttribute : Attribute
+public sealed class CommandAttribute : Attribute
 {
     /// <summary>
     /// The name of the command
@@ -23,11 +23,6 @@ public class CommandAttribute : Attribute
     public string Parameters { get; set; }
 
     /// <summary>
-    /// Indicates whether this is a command group
-    /// </summary>
-    public bool IsGroup { get; set; }
-
-    /// <summary>
     /// Hides the command in help output (for debug/internal commands)
     /// </summary>
     public bool Hidden { get; set; }
@@ -44,11 +39,6 @@ public class CommandAttribute : Attribute
     public string GetUsage(string parentCommand = null)
     {
         var prefix = parentCommand != null ? $"rauch {parentCommand}" : "rauch";
-
-        if (IsGroup)
-        {
-            return $"{prefix} {Name} <subcommand>";
-        }
 
         if (!string.IsNullOrEmpty(Parameters))
         {

@@ -2,7 +2,7 @@
 
 namespace LiveCode;
 
-public class AssemblyLoadContext : System.Runtime.Loader.AssemblyLoadContext
+public sealed class AssemblyLoadContext : System.Runtime.Loader.AssemblyLoadContext
 {
     public AssemblyLoadContext() : base(true)
     {

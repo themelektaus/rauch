@@ -6,7 +6,7 @@ using System.Reflection.Metadata;
 
 namespace LiveCode;
 
-public class CSharpCompiler
+public sealed class CSharpCompiler
 {
     public LanguageVersion languageVersion = LanguageVersion.CSharp13;
 

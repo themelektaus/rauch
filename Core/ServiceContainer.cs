@@ -5,7 +5,7 @@ namespace Rauch.Core;
 /// <summary>
 /// Simple dependency injection container for commands
 /// </summary>
-public class ServiceContainer : IServiceProvider
+public sealed class ServiceContainer : IServiceProvider
 {
     private readonly ConcurrentDictionary<Type, object> _singletons = new();
     private readonly ConcurrentDictionary<Type, Func<IServiceProvider, object>> _factories = new();

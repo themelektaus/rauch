@@ -2,23 +2,24 @@
 
 # rauch
 
-A modern .NET 10.0 command-line tool with dynamic plugin support and automatic command discovery.
+A modern .NET 10.0 command-line tool with dynamic plugin support, automatic command discovery, and interactive console UI.
 
 ## Features
 
 - **Automatic Command Discovery**: Commands are automatically discovered via reflection - no manual registration needed
-- **Runtime Plugin System**: Load commands from `.cs` files at runtime using Roslyn compilation
+- **Runtime Plugin System**: Load commands from `.cs` files at runtime using Roslyn C# 13 compilation
 - **Smart Caching**: Plugin compilation results are cached with SHA256-based invalidation
 - **Command Groups**: Organize related commands into groups with subcommands
 - **Validation Attributes**: Declarative argument validation with custom attributes
 - **Dependency Injection**: Lightweight DI container for service management
 - **Color-Coded Logging**: Console output with different severity levels (Info, Success, Warning, Error, Debug)
+- **Interactive Console UI**: Arrow-key menu selection and text input prompts
 
 ## Installation
 
 ### Prerequisites
 
-- .NET 10.0 RC or later
+- .NET 10.0 or later
 
 ### Powershell
 
@@ -54,29 +55,32 @@ dotnet run windows winrm       # Enable WinRM and configure remote management
 ### Plugin Commands
 
 ```bash
-# Install Claude Code with portable Git Bash
-dotnet run install claude
+# Install tools
+dotnet run install claude        # Install Claude Code with portable Git Bash
+dotnet run install rauchmelder   # Install Rauchmelder with .NET 9 runtime
+dotnet run install office        # Install Microsoft Office
+dotnet run install teams         # Install Microsoft Teams
+dotnet run install vcredist22    # Install Visual C++ Redistributable 2022
+dotnet run install nxlog         # Install NXLog
 
-# Install Rauchmelder with .NET 9 runtime
-dotnet run install rauchmelder
+# Run portable tools
+dotnet run run everything        # Run Everything Search Engine
+dotnet run run procexp           # Run Process Explorer
+dotnet run run treesize          # Run TreeSize Free
+dotnet run run psexec            # Run PsExec
+dotnet run run speedtest         # Run Speedtest CLI
 
-# Install Microsoft Office
-dotnet run install office
+# Windows configuration
+dotnet run windows activate      # Activate Windows
+dotnet run windows win11ready    # Check Windows 11 readiness
 
-# Install Microsoft Teams
-dotnet run install teams
+# Windows setup wizards
+dotnet run gump basic            # System-level configuration (admin required)
+dotnet run gump usr              # User-level configuration
 
-# Install Visual C++ Redistributable 2022
-dotnet run install vcredist22
-
-# Install NXLog
-dotnet run install nxlog
-
-# Uninstall ConnectWise Automate agents
-dotnet run uninstall cwa
-
-# Uninstall NXLog
-dotnet run uninstall nxlog
+# Uninstall tools
+dotnet run uninstall cwa         # Uninstall ConnectWise Automate agents
+dotnet run uninstall nxlog       # Uninstall NXLog
 ```
 
 ## Architecture
@@ -85,7 +89,7 @@ dotnet run uninstall nxlog
 
 1. **Individual Commands**: Core commands located in `Commands/` namespace (e.g., `help`, `update`, `debug`)
 2. **Command Groups**: Related commands organized in subdirectories with automatic subcommand loading (e.g., `run ping`, `windows winrm`)
-3. **Runtime Plugins**: External commands loaded from `plugins/` directory at runtime with hot-reload support
+3. **Runtime Plugins**: External commands loaded from `Plugins/` directory at runtime with hot-reload support
 
 ### Command Discovery
 
@@ -100,12 +104,12 @@ Command groups automatically load their subcommands using namespace suffix match
 
 ### Plugin System
 
-Plugins are `.cs` files that are compiled at runtime using Roslyn:
+Plugins are `.cs` files that are compiled at runtime using Roslyn with C# 13 support:
 
 - **Auto-injection**: Missing using statements and namespaces are automatically added
 - **Hot-reload**: Changes to plugin source files are automatically detected and recompiled
 - **Performance**: Compiled plugins are cached to minimize startup time
-- **No build step**: Simply drop a `.cs` file in `plugins/` and run
+- **No build step**: Simply drop a `.cs` file in `Plugins/` and run
 
 #### Creating a Plugin
 
@@ -143,12 +147,35 @@ public class MyTool : ICommand
         {
             SetWorkingDirectory("data", logger);
             await DownloadFile(DOWNLOAD_URL, FILE_NAME, logger, ct);
-            await StartProcess(FILE_NAME, logger);
+            await StartProcess(FILE_NAME, logger: logger, ct: ct);
         }
         catch (Exception ex)
         {
             logger?.Error($"Failed: {ex.Message}");
         }
+    }
+}
+```
+
+**Interactive Configuration Plugin:**
+
+```csharp
+namespace Rauch.Plugins.Gump;
+
+[Command("config")]
+public class Config : ICommand
+{
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    {
+        var logger = services.GetService<ILogger>();
+
+        // Interactive menu selection with arrow keys
+        var choice = logger?.Choice("Select option", ["Option A", "Option B", "Option C"], 0);
+
+        // Text input with default value
+        var name = logger?.Question("Enter name:", defaultValue: "Default");
+
+        logger?.Success($"Selected: {choice}, Name: {name}");
     }
 }
 ```
@@ -172,6 +199,13 @@ The `CommandUtils` class provides static helper methods for plugins:
 - `CommandFlags.UseShellExecute`: Use shell execute for process
 - `CommandFlags.CreateNoWindow`: Create process without window
 
+### Interactive Console UI
+
+The `ILogger` interface provides interactive methods:
+
+- `Choice(message, options, defaultIndex)`: Arrow-key menu selection, returns selected index
+- `Question(message, possibleValues, defaultValue, allowEmpty)`: Text input with validation
+
 ## Project Structure
 
 ```
@@ -179,7 +213,7 @@ rauch/
 ├── Commands/              # Core commands (Rauch.Commands namespace)
 │   ├── Help.cs           # Help command
 │   ├── Update.cs         # Self-update command
-│   ├── Debug.cs          # Debug command
+│   ├── Debug.cs          # Debug command (hidden)
 │   ├── Run/              # Run command group
 │   │   ├── _Index.cs     # Group definition
 │   │   ├── Ping.cs       # Ping subcommand
@@ -202,16 +236,38 @@ rauch/
 │   │   ├── VcRedist22.ps1 # PowerShell script
 │   │   ├── Nxlog.cs      # Install NXLog
 │   │   └── Nxlog.ps1     # PowerShell script
-│   └── Uninstall/        # Uninstall command group
+│   ├── Run/              # Run command group
+│   │   ├── _Index.cs     # Group definition
+│   │   ├── Everything.cs # Everything Search Engine
+│   │   ├── ProcExp.cs    # Process Explorer
+│   │   ├── TreeSize.cs   # TreeSize Free
+│   │   ├── PsExec.cs     # PsExec
+│   │   ├── Speedtest.cs  # Speedtest CLI
+│   │   └── Speedtest.ps1 # PowerShell script
+│   ├── Windows/          # Windows command group
+│   │   ├── _Index.cs     # Group definition
+│   │   ├── Activate.cs   # Activate Windows
+│   │   ├── Win11Ready.cs # Windows 11 readiness check
+│   │   └── Logout.ps1    # Logout script
+│   ├── Uninstall/        # Uninstall command group
+│   │   ├── _Index.cs     # Group definition
+│   │   ├── Cwa.cs        # Uninstall ConnectWise Automate
+│   │   ├── Nxlog.cs      # Uninstall NXLog
+│   │   └── Nxlog.ps1     # PowerShell script
+│   └── Gump/             # Windows setup wizards
 │       ├── _Index.cs     # Group definition
-│       ├── Cwa.cs        # Uninstall ConnectWise Automate
-│       ├── Nxlog.cs      # Uninstall NXLog
-│       └── Nxlog.ps1     # PowerShell script
+│       ├── Basic.cs      # System-level configuration
+│       └── Usr.cs        # User-level configuration
 ├── Core/                  # Core infrastructure
 │   ├── CommandLoader.cs  # Command discovery system
 │   ├── PluginLoader.cs   # Runtime plugin compilation
 │   ├── CommandUtils.cs   # Utility methods for plugins
+│   ├── ConsoleLogger.cs  # Logger with interactive UI
 │   └── Attributes/       # Validation and metadata attributes
+├── LiveCode/              # Runtime C# compilation
+│   ├── CSharpCompiler.cs # Roslyn C# 13 compiler
+│   ├── AssemblyReference.cs # Assembly loading
+│   └── AssemblyLoadContext.cs # Plugin isolation
 ├── CLAUDE.md              # Detailed developer documentation
 ├── README.md              # User documentation
 ├── install.ps1            # Installation script
@@ -261,7 +317,7 @@ public class MyCommand : ICommand
 
 ### Creating a Plugin
 
-1. Create `.cs` file in `plugins/` directory
+1. Create `.cs` file in `Plugins/` directory
 2. Write minimal command class (using statements auto-injected)
 3. Run application - plugin compiles automatically
 4. Edit source - changes detected and recompiled

@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace LiveCode;
 
-public class AssemblyReference
+public sealed class AssemblyReference
 {
     public Assembly Assembly { get; init; }
     public WeakReference Reference { get; init; }

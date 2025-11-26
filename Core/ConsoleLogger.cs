@@ -3,7 +3,7 @@ namespace Rauch.Core;
 /// <summary>
 /// Console logger implementation with color support
 /// </summary>
-public class ConsoleLogger : ILogger
+public sealed class ConsoleLogger : ILogger
 {
     readonly bool _enableColors;
 

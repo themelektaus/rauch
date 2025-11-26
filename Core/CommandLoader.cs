@@ -5,7 +5,7 @@ namespace Rauch.Core;
 /// <summary>
 /// Dynamically loads all available commands via reflection
 /// </summary>
-public class CommandLoader
+public sealed class CommandLoader
 {
     /// <summary>
     /// Finds and instantiates all ICommand implementations in the current assembly

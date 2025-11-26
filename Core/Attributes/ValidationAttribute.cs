@@ -17,7 +17,7 @@ public abstract class ValidationAttribute : Attribute
 /// <summary>
 /// Defines the minimum number of arguments
 /// </summary>
-public class MinArgumentsAttribute : ValidationAttribute
+public sealed class MinArgumentsAttribute : ValidationAttribute
 {
     public int MinCount { get; }
 
@@ -39,7 +39,7 @@ public class MinArgumentsAttribute : ValidationAttribute
 /// <summary>
 /// Defines the maximum number of arguments
 /// </summary>
-public class MaxArgumentsAttribute : ValidationAttribute
+public sealed class MaxArgumentsAttribute : ValidationAttribute
 {
     public int MaxCount { get; }
 
@@ -61,7 +61,7 @@ public class MaxArgumentsAttribute : ValidationAttribute
 /// <summary>
 /// Defines the exact number of arguments
 /// </summary>
-public class ExactArgumentsAttribute : ValidationAttribute
+public sealed class ExactArgumentsAttribute : ValidationAttribute
 {
     public int Count { get; }
 
@@ -83,7 +83,7 @@ public class ExactArgumentsAttribute : ValidationAttribute
 /// <summary>
 /// Validates that all arguments are numeric
 /// </summary>
-public class NumericArgumentsAttribute : ValidationAttribute
+public sealed class NumericArgumentsAttribute : ValidationAttribute
 {
     public override (bool IsValid, string ErrorMessage) Validate(string[] args)
     {

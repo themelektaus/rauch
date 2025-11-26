@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**rauch** is a .NET 10.0 console application with a reflection-based command architecture featuring automatic command discovery, validation, async execution, dependency injection, and a powerful runtime plugin system.
+**rauch** is a .NET 10.0 console application with a reflection-based command architecture featuring automatic command discovery, validation, async execution, dependency injection, a powerful runtime plugin system with C# 13 compilation, and interactive console UI components.
 
 ## Build and Run Commands
 
@@ -20,11 +20,12 @@ dotnet run <command> [args]
 
 # Examples
 dotnet run help
-dotnet run run ping              # Run ping command
-dotnet run windows winrm         # Enable WinRM
-dotnet run install claude        # Plugin: Install Claude Code
-dotnet run install rauchmelder   # Plugin: Install Rauchmelder with .NET 9
-dotnet run update                # Update rauch from GitHub
+dotnet run run everything          # Run Everything Search Engine
+dotnet run windows activate        # Activate Windows
+dotnet run install claude          # Plugin: Install Claude Code
+dotnet run install rauchmelder     # Plugin: Install Rauchmelder with .NET 9
+dotnet run gump basic              # Run Windows configuration wizard
+dotnet run update                  # Update rauch from GitHub
 ```
 
 ## Architecture
@@ -50,8 +51,9 @@ The application uses a **namespace-based reflection system** to automatically di
    - Loaded as top-level commands (e.g., `help`, `update`, `debug`)
 
 3. **Plugin Commands**:
-   - Located in `plugins/` directory as `.cs` source files
+   - Located in `Plugins/` directory as `.cs` source files
    - Compiled at runtime using Roslyn (Microsoft.CodeAnalysis.CSharp)
+   - Supports C# 13 language features
    - Automatically cached with SHA256-based invalidation
    - Auto-injection of required using statements and namespace
    - See **Plugin System** section for details
@@ -87,7 +89,7 @@ public class Sum : ICommand
 
 **CommandAttribute Properties**:
 - `Name` (required): Command name
-- `Description` (required): Command description
+- `Description` (optional): Command description (default: empty string)
 - `Parameters`: Optional usage string (auto-generated if omitted)
 - `IsGroup`: Set to `true` for command groups
 - `Hidden`: Hides command from help output (still executable)
@@ -111,7 +113,7 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 - Always use `CommandMetadata.GetName()`, `GetDescription()`, etc. instead of direct reflection
 
 **Plugin Compilation Caching** (`PluginLoader.cs`):
-- Compiled plugins cached in `plugins/.cache/` as DLLs
+- Compiled plugins cached in `Plugins/.cache/` as DLLs
 - SHA256 hash comparison for source change detection
 - Only recompiles when source code changes
 - Dramatically improves startup performance for cached plugins
@@ -120,9 +122,10 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 
 **ServiceContainer** (`Core/ServiceContainer.cs`):
 - Lightweight DI container supporting singletons and factories
+- Implements `IServiceProvider` interface
 - Configured in `Program.cs` `Main` method
 - Passed to all commands via `ExecuteAsync(args, services, ct)`
-- Access services with `services.GetService<TService>()`
+- Access services with `services.GetService<TService>()` or `services.GetRequiredService<TService>()`
 
 ### Logging System
 
@@ -132,13 +135,35 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 - `Success()`: Green - success messages
 - `Warning()`: Yellow - warnings
 - `Error()`: Red - error messages
-- `Debug()`: Dark gray - debug messages
+- `Debug()`: Dark gray - debug messages (only in DEBUG builds)
+- `Write()`: Generic output with optional color
+- `Exit()`: Display exit code with appropriate color
+- `Question()`: Interactive text input with validation and default values
+- `Choice()`: Interactive menu selection with arrow key navigation
 - Access logger via DI: `services.GetService<ILogger>()`
 
 **Verbose Logging Control**:
 - Plugin loading messages only shown when displaying help or during compilation
 - Silent operation for normal command execution
 - Controlled via `verbosePluginLogging` parameter in `CommandLoader.LoadCommands()`
+
+### LiveCode Compiler System
+
+The `LiveCode/` namespace provides runtime C# compilation infrastructure:
+
+**CSharpCompiler** (`LiveCode/CSharpCompiler.cs`):
+- Roslyn-based C# compiler supporting C# 13 language features
+- Compiles source code to DLL with optimized release settings
+- Automatically resolves all assembly references from the executing assembly
+- Uses unsafe code for efficient metadata access
+
+**AssemblyReference** (`LiveCode/AssemblyReference.cs`):
+- Loads compiled assemblies with weak references for potential unloading
+- Uses custom `AssemblyLoadContext` for isolation
+
+**AssemblyLoadContext** (`LiveCode/AssemblyLoadContext.cs`):
+- Collectible assembly load context for plugin isolation
+- Enables potential assembly unloading for hot-reload scenarios
 
 ## Plugin System
 
@@ -147,24 +172,55 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 The plugin system allows dynamic loading of commands from `.cs` source files at runtime without recompiling the main application.
 
 **Key Features**:
-- Runtime C# compilation using Roslyn
+- Runtime C# 13 compilation using Roslyn
 - Automatic caching with SHA256-based invalidation
 - Auto-injection of required using statements and namespace
 - Hot-reload capability (detects source changes)
 - No build step required for plugin development
+- Support for embedded PowerShell scripts in plugin directories
 
 ### Plugin Directory Structure
 
 ```
 Plugins/
-├── .cache/                  # Auto-generated compiled DLLs (gitignored)
+├── .cache/                      # Auto-generated compiled DLLs (gitignored)
 │   ├── Install.dll
 │   ├── Install.hash
-│   └── Install_debug.cs     # Debug output (combined source)
-└── Install/                 # Plugin command group (subdirectory)
-    ├── _Index.cs            # Group definition
-    ├── Everything.cs        # Download and run Everything Search Engine
-    └── Claude.cs            # Install Claude Code and portable Git Bash
+│   ├── Install_debug.cs         # Debug output (combined source)
+│   ├── Run.dll
+│   ├── Run.hash
+│   └── ...
+├── Install/                     # Plugin command group
+│   ├── _Index.cs                # Group definition
+│   ├── Claude.cs                # Install Claude Code
+│   ├── Office.cs                # Install Microsoft Office
+│   ├── Teams.cs                 # Install Microsoft Teams
+│   ├── Rauchmelder.cs           # Install Rauchmelder
+│   ├── VcRedist22.cs            # Install VC++ Redistributable
+│   ├── Nxlog.cs                 # Install NXLog
+│   └── Nxlog.ps1                # Embedded PowerShell script
+├── Run/                         # Run portable tools
+│   ├── _Index.cs
+│   ├── Everything.cs            # Everything Search Engine
+│   ├── ProcExp.cs               # Process Explorer
+│   ├── TreeSize.cs              # TreeSize Free
+│   ├── PsExec.cs                # PsExec
+│   ├── Speedtest.cs             # Speedtest CLI
+│   └── Speedtest.ps1
+├── Windows/                     # Windows configuration
+│   ├── _Index.cs
+│   ├── Win11Ready.cs            # Check Windows 11 readiness
+│   ├── Activate.cs              # Activate Windows
+│   └── Logout.ps1               # Logout script
+├── Uninstall/                   # Uninstall tools
+│   ├── _Index.cs
+│   ├── Cwa.cs                   # Uninstall ConnectWise
+│   ├── Nxlog.cs                 # Uninstall NXLog
+│   └── Nxlog.ps1
+└── Gump/                        # Windows setup wizards
+    ├── _Index.cs
+    ├── Basic.cs                 # System-level configuration (admin)
+    └── Usr.cs                   # User-level configuration
 ```
 
 ### Creating a Plugin
@@ -218,7 +274,7 @@ The plugin loader (`PluginLoader.cs`) automatically injects missing code:
 using Rauch.Commands;
 using Rauch.Core;
 using Rauch.Core.Attributes;
-using static Rauch.Core.CommandUtils;  // Provides SetWorkingDirectory, DownloadFile, Unzip, StartProcess
+using static Rauch.Core.CommandUtils;  // Provides SetWorkingDirectory, DownloadFile, Unzip, StartProcess, etc.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -231,7 +287,7 @@ using System.Threading;
 using System.Threading.Tasks;
 ```
 
-**Note**: The using statements are automatically generated during build from `Usings.cs` into `Usings.g.cs` via the `Usings.ps1` PowerShell script.
+**Note**: The using statements are automatically generated during build from `Usings.cs` into `Usings.g.cs` via the `Usings.ps1` PowerShell script. The generated file contains a `Usings` class with a `Namespaces` array.
 
 **Automatically Injected Namespace**:
 ```csharp
@@ -246,19 +302,20 @@ namespace Rauch.Plugins;
 
 ### Plugin Compilation Process
 
-1. **Load**: Plugin `.cs` files discovered in `plugins/` directory
+1. **Load**: Plugin `.cs` files discovered in `Plugins/` directory
 2. **Hash Check**: SHA256 hash of source compared with cached `.hash` file
 3. **Cache Hit**: If hash matches, load pre-compiled `.dll` from cache
 4. **Cache Miss**: If hash differs or no cache exists:
    - Auto-inject missing using statements and namespace
-   - Compile source to `.dll` using Roslyn
+   - Compile source to `.dll` using Roslyn (C# 13)
    - Save `.dll` and `.hash` to cache
+   - Save `_debug.cs` for inspection
    - Load compiled assembly
 5. **Instantiate**: Extract `ICommand` implementations and instantiate
 
 ### Plugin Development Workflow
 
-1. Create `.cs` file in `plugins/` directory
+1. Create `.cs` file in `Plugins/` directory (or subdirectory for groups)
 2. Write minimal command class (auto-injection handles the rest)
 3. Run application - plugin compiles automatically
 4. Edit plugin source - changes detected and recompiled automatically
@@ -266,18 +323,19 @@ namespace Rauch.Plugins;
 
 ### Plugin Cache Management
 
-**Cache Location**: `plugins/.cache/` (excluded from git via `.gitignore`)
+**Cache Location**: `Plugins/.cache/` (excluded from git via `.gitignore`)
 
 **Cache Files**:
-- `<PluginName>.dll`: Compiled assembly
-- `<PluginName>.hash`: SHA256 hash of source code
+- `<GroupName>.dll`: Compiled assembly
+- `<GroupName>.hash`: SHA256 hash of combined source code
+- `<GroupName>_debug.cs`: Combined source for debugging
 
 **Cache Invalidation**:
-- Automatic when source file changes
-- Manual: Delete `plugins/.cache/` directory to force full recompilation
+- Automatic when any source file in the group changes
+- Manual: Delete `Plugins/.cache/` directory to force full recompilation
 
 **Performance**:
-- First run: ~1-3 seconds compilation time
+- First run: ~1-3 seconds compilation time per group
 - Cached runs: <100ms load time
 - Significant startup performance improvement
 
@@ -317,13 +375,14 @@ public class MyCommand : ICommand
    ```csharp
    namespace Rauch.Commands.<GroupName>;
 
-   [Command("groupname", "Description", IsGroup = true)]
+   [Command("groupname", IsGroup = true)]
    public class _Index : BaseCommandGroup { }
    ```
    **Note**: The filename can be anything; what matters is:
    - Inheriting from `BaseCommandGroup`
    - Having `[Command(IsGroup = true)]` attribute
    - Using the correct namespace
+   - Description is optional for groups
 3. Add subcommand files in same folder (e.g., `Commands/GroupName/SubCommand.cs`)
 4. Subcommands (all `ICommand` implementations that are not `ICommandGroup`) are **automatically loaded** by `BaseCommandGroup` via namespace suffix matching
 
@@ -331,7 +390,7 @@ public class MyCommand : ICommand
 
 ### Creating a Plugin Command
 
-1. Create file in `plugins/<PluginName>.cs`
+1. Create file in `Plugins/<GroupName>/<PluginName>.cs`
 2. Write minimal command class (using/namespace optional - auto-injected)
 3. Plugin compiles automatically on next run
 4. See **Plugin System** section for details
@@ -355,29 +414,35 @@ Hidden commands execute normally but don't appear in help output.
 - `Core/PluginLoader.cs`: Runtime C# compilation, caching, auto-injection
 - `Core/BaseCommandGroup.cs`: Base class for groups, loads subcommands via reflection
 - `Core/CommandMetadata.cs`: Cached reflection helper for reading attributes
-- `Core/CommandUtils.cs`: Static utility methods for plugins (SetWorkingDirectory, DownloadFile, Unzip, StartProcess)
+- `Core/CommandUtils.cs`: Static utility methods for plugins (SetWorkingDirectory, DownloadFile, Unzip, StartProcess, etc.)
 - `Core/ServiceContainer.cs`: Lightweight DI container
-- `Core/ConsoleLogger.cs`: Console logger implementation with color support
+- `Core/ConsoleLogger.cs`: Console logger implementation with color support and interactive UI
+
+**LiveCode Compiler**:
+- `LiveCode/CSharpCompiler.cs`: Roslyn-based C# 13 compiler for plugins
+- `LiveCode/AssemblyReference.cs`: Assembly loading with weak references
+- `LiveCode/AssemblyLoadContext.cs`: Collectible assembly load context for isolation
 
 **Interfaces**:
 - `Core/Interfaces/ICommand.cs`: All commands implement this (async pattern)
 - `Core/Interfaces/ICommandGroup.cs`: Extends ICommand with SubCommands property
-- `Core/Interfaces/ILogger.cs`: Logger interface with severity levels
+- `Core/Interfaces/ILogger.cs`: Logger interface with severity levels and interactive UI
 
 **Attributes**:
 - `Core/Attributes/CommandAttribute.cs`: Command metadata declaration
 - `Core/Attributes/ValidationAttribute.cs`: Base class for argument validators
 
 **Project Configuration**:
-- `rauch.csproj`: .NET 10.0 project, excludes `plugins/` from compilation, generates `Usings.g.cs` during build, includes `Logo.ico` as application icon
+- `rauch.csproj`: .NET 10.0 project with unsafe blocks enabled, excludes `Plugins/` from compilation in Release, generates `Usings.g.cs` during build, includes `Logo.ico` as application icon
 - `Usings.cs`: Global using statements (converted to plugin usings during build)
-- `Usings.g.cs`: Auto-generated file containing required usings for plugins (generated by `Usings.ps1`)
+- `Usings.g.cs`: Auto-generated file containing `Usings` class with `Namespaces` array (generated by `Usings.ps1`)
 - `Usings.ps1`: PowerShell script that generates `Usings.g.cs` from `Usings.cs` during build
 - `.gitignore`: Ignores build artifacts and plugin cache
 
 **Installation Scripts**:
 - `install.ps1`: PowerShell installation script that downloads rauch.exe to `~/.rauch/bin`, adds it to user PATH, and launches it
 - `ConvertPngToIco.ps1`: Utility script to convert PNG images to multi-resolution ICO files (256x256, 128x128, 64x64, 48x48, 32x32, 16x16)
+- `PackPlugins.ps1`: PowerShell script to pack plugins into a ZIP file for distribution (runs before Publish)
 
 **Assets**:
 - `Logo.ico`: Application icon (256x256 max, embedded in executable)
@@ -387,9 +452,10 @@ Hidden commands execute normally but don't appear in help output.
 **Build Process**:
 1. MSBuild target `Usings` runs before `CoreCompile`
 2. Executes `Usings.ps1` to read `Usings.cs`
-3. Generates `Usings.g.cs` with `RequiredUsings` class containing all using statements
+3. Generates `Usings.g.cs` with `Usings` class containing `Namespaces` array
 4. `PluginLoader.EnumerateRequiredUsings()` returns usings from generated class
 5. Plugins automatically receive all required usings during compilation
+6. MSBuild target `PackPlugins` runs before `Publish` to create `Build/Plugins.zip`
 
 ## Critical Design Decisions
 
@@ -403,11 +469,13 @@ Hidden commands execute normally but don't appear in help output.
 8. **Separation of concerns**: Top-level commands loaded by `CommandLoader`, subcommands loaded by `BaseCommandGroup`
 9. **Colored logging**: All console output uses ILogger with color-coded severity levels
 10. **Centralized using statements**: All using statements managed in `Usings.cs`, auto-generated for plugins via build process
-11. **Runtime plugin compilation**: Roslyn-based C# compilation for plugins
+11. **Runtime plugin compilation**: Roslyn-based C# 13 compilation for plugins
 12. **Aggressive caching**: SHA256-based cache invalidation for fast startup
 13. **Auto-injection**: Minimal plugin boilerplate via automatic code injection
 14. **Verbose logging control**: Silent by default, verbose only when needed (help/compilation)
 15. **Static utility methods**: Common plugin operations (download, unzip, process start) in `CommandUtils` with `using static`
+16. **Interactive console UI**: Choice menus and question prompts for user interaction
+17. **Plugin PowerShell support**: Plugins can have associated .ps1 scripts in their directories
 
 ## Dependencies
 
@@ -415,14 +483,14 @@ Hidden commands execute normally but don't appear in help output.
 - `Microsoft.CodeAnalysis.CSharp` (v4.12.0): Roslyn compiler for plugin system
 
 **Framework**:
-- .NET 10.0 (RC)
+- .NET 10.0
 
 ## Development Guidelines
 
 1. **Adding Commands**:
    - Use individual commands in `Commands/` namespace for core functionality
    - Prefer plugins for experimental/optional commands
-   - Use command groups for related commands (e.g., `install`, `uninstall`)
+   - Use command groups for related commands (e.g., `install`, `uninstall`, `run`, `gump`)
 2. **Using Statements**:
    - Core code: Use global using statements in `Usings.cs`
    - Plugins: Using statements auto-injected from `Usings.g.cs` (no manual usings needed)
@@ -445,6 +513,7 @@ Hidden commands execute normally but don't appear in help output.
    - `CommandFlags.NoProfile`: PowerShell -NoProfile flag
    - `CommandFlags.UseShellExecute`: Use shell execute for process
    - `CommandFlags.CreateNoWindow`: Create process without window
+10. **Interactive UI**: Use `logger.Choice()` for menu selection and `logger.Question()` for text input
 
 ## Plugin Examples
 
@@ -554,7 +623,7 @@ public class Teams : ICommand
 
 ### Example 4: Plugin with Embedded PowerShell Script
 ```csharp
-namespace Rauch.Commands.Activate;
+namespace Rauch.Commands.Windows;
 
 [Command("winrm", "Enable WinRM and configure remote management")]
 public class WinRm : ICommand
@@ -679,6 +748,52 @@ public class Rauchmelder : ICommand
         // and searching for "Microsoft.NETCore.App {version}."
         // Implementation details omitted for brevity
         return false;
+    }
+}
+```
+
+### Example 6: Interactive Configuration Wizard Plugin
+```csharp
+namespace Rauch.Plugins.Gump;
+
+[Command("usr")]
+public class Usr : ICommand
+{
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    {
+        var logger = services.GetService<ILogger>();
+
+        async Task Run(string powershellCommand)
+        {
+            await ExecutePowershellCommand(powershellCommand, CommandFlags.NoProfile, logger: logger, ct: ct);
+        }
+
+        // Interactive menu selection
+        var windowsLanguage = (logger?.Choice("UI and Keyboard Language", ["de-AT", "de-DE", "en-US", "custom"], 0)) switch
+        {
+            0 => "de-AT",
+            1 => "de-DE",
+            2 => "en-US",
+            _ => logger?.Question("Enter UI and Keyboard Language:", allowEmpty: true),
+        };
+
+        if (windowsLanguage != string.Empty)
+        {
+            await Run($"Set-WinUserLanguageList {windowsLanguage} -Force");
+        }
+
+        // Yes/No choice
+        if (logger?.Choice("Enable Classic right Click for W11", ["yes", "no"]) == 0)
+        {
+            await Run(@"New-Item -Path ""HKCU:\Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}\InprocServer32"" -Value """" -Force");
+        }
+
+        // Choice with default value
+        var showHiddenFiles = logger?.Choice("Show Hidden Files", ["yes", "no"], 1);
+        if (showHiddenFiles == 0)
+        {
+            await Run(@"Set-ItemProperty -Path ""HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"" -Name ""Hidden"" -Type DWord -Value 1");
+        }
     }
 }
 ```

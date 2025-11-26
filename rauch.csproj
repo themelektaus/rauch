@@ -31,7 +31,7 @@
   </ItemGroup>
 
   <!-- Generate Usings.g.cs from Usings.cs during build -->
-  <Target Name="Usings" BeforeTargets="CoreCompile">
+  <Target Name="RauchGenerateUsings" BeforeTargets="BeforeBuild">
     <PropertyGroup>
       <UsingsSourceFile>$(MSBuildProjectDirectory)\Usings.cs</UsingsSourceFile>
       <GeneratedUsingsFile>$(MSBuildProjectDirectory)\Usings.g.cs</GeneratedUsingsFile>
@@ -43,7 +43,7 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="PackPlugins" BeforeTargets="Publish">
+  <Target Name="RauchPackPlugins" BeforeTargets="Publish">
     <PropertyGroup>
       <ScriptFile>$(MSBuildProjectDirectory)\PackPlugins.ps1</ScriptFile>
       <SourceFolder>$(MSBuildProjectDirectory)\Plugins</SourceFolder>

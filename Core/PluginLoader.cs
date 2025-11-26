@@ -7,7 +7,7 @@ namespace Rauch.Core;
 /// Loads and compiles plugin commands from .cs files at runtime
 /// Caches compiled assemblies to improve loading performance
 /// </summary>
-public class PluginLoader
+public sealed class PluginLoader
 {
     private readonly string _pluginDirectory;
     private readonly string _cacheDirectory;
