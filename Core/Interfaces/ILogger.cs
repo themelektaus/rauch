@@ -34,5 +34,7 @@ public interface ILogger
 
     void Exit(int exitCode);
 
-    string Question(string message, string[] possibleValues, string defaultValue);
+    string Question(string message, string[] possibleValues = null, string defaultValue = null, bool allowEmpty = false);
+
+    int Choice(string message, string[] items, int defaultIndex = 0);
 }

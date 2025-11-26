@@ -94,7 +94,7 @@ public class ConsoleLogger : ILogger
         }
     }
 
-    public string Question(string message, string[] possibleValues, string defaultValue)
+    public string Question(string message, string[] possibleValues = null, string defaultValue = null, bool allowEmpty = false)
     {
         Write();
         Write(message + " ", newLine: false);
@@ -147,6 +147,10 @@ public class ConsoleLogger : ILogger
                 {
                     input = defaultValue;
                 }
+                else if (allowEmpty)
+                {
+                    input = string.Empty;
+                }
                 else
                 {
                     continue;
@@ -170,5 +174,162 @@ public class ConsoleLogger : ILogger
 
         return input;
     }
-}
 
+    public int Choice(string message, string[] items, int defaultIndex = 0)
+    {
+        Write();
+        var menu = new ChoiceMenu();
+        menu.AddItems(items);
+        Write($"{message} (", newLine: false);
+        menu.Write();
+        Write(")", newLine: false);
+        menu.SetIndex(defaultIndex);
+        var index = menu.ReadIndex();
+        menu.WriteResult();
+        return index;
+    }
+
+    class ChoiceMenu
+    {
+        public string separator = "/";
+        public int x;
+        public int y;
+
+        readonly List<ChoiceItem> items = [];
+
+        public void AddItems(params string[] items)
+        {
+            foreach (var item in items)
+            {
+                this.items.Add(new()
+                {
+                    menu = this,
+                    text = item
+                });
+            }
+        }
+
+        public void Write()
+        {
+            (x, y) = Console.GetCursorPosition();
+
+            foreach (var item in items)
+            {
+                item.Write();
+
+                if (items.LastOrDefault() != item)
+                {
+                    Console.Write(separator);
+                }
+            }
+        }
+
+        public void WriteResult()
+        {
+            Console.SetCursorPosition(x - 1, y);
+            var text = $" {items.FirstOrDefault(x => x.selected).text}";
+            var width = GetWidth();
+            while (text.Length <= width)
+            {
+                text += " ";
+            }
+            var color = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(text);
+            Console.ForegroundColor = color;
+        }
+
+        public int ReadIndex()
+        {
+            Console.CursorVisible = false;
+
+            for (; ; )
+            {
+                var index = items.FindIndex(x => x.selected);
+
+                var key = Console.ReadKey(intercept: true);
+
+                if (key.Key == ConsoleKey.LeftArrow)
+                {
+                    SetIndex(Math.Max(0, index - 1));
+                }
+                else if (key.Key == ConsoleKey.RightArrow)
+                {
+                    SetIndex(Math.Min(items.Count - 1, index + 1));
+                }
+
+                if (key.Key == ConsoleKey.Enter)
+                {
+                    break;
+                }
+            }
+
+            Console.CursorVisible = true;
+            return items.FindIndex(x => x.selected);
+        }
+
+        int GetWidth()
+        {
+            return items.Sum(i => i.text.Length) + items.Count * separator.Length;
+        }
+
+        public (int x, int y) GetItemPosition(ChoiceItem item)
+        {
+            var x = this.x;
+            for (var i = 0; i < items.Count; i++)
+            {
+                if (items[i] != item)
+                {
+                    x += items[i].text.Length + separator.Length;
+                }
+                else
+                {
+                    return (x, y);
+                }
+            }
+            throw new("item not found");
+        }
+
+        public void SetIndex(int index)
+        {
+            var item = items.FirstOrDefault(x => x.selected);
+            if (item is not null)
+            {
+                item.selected = false;
+                item.Write();
+            }
+
+            item = items[index];
+            item.selected = true;
+            item.Write();
+        }
+    }
+
+    class ChoiceItem
+    {
+        public ChoiceMenu menu;
+        public string text;
+        public bool selected;
+
+        public void Write()
+        {
+            var (x, y) = menu.GetItemPosition(this);
+            Console.SetCursorPosition(x, y);
+
+            if (selected)
+            {
+                var foreground = Console.ForegroundColor;
+                var background = Console.BackgroundColor;
+                Console.ForegroundColor = background;
+                Console.BackgroundColor = foreground;
+                Console.Write(text);
+                Console.ForegroundColor = foreground;
+                Console.BackgroundColor = background;
+            }
+            else
+            {
+                Console.Write(text);
+            }
+        }
+    }
+}

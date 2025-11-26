@@ -10,39 +10,39 @@ public class Fix : ICommand
     {
         var logger = services.GetService<ILogger>();
 
-        var _EnableADAL = logger?.Question("Enable ADAL", ["yes", "no", "null"], "null");
+        var _EnableADAL = logger?.Choice("Enable ADAL", ["yes", "no", "none"], 2);
         SetCurrentUser(
             Registry.CurrentUser,
             @"Software\Microsoft\Office\16.0\Common\Identity",
             "EnableADAL",
-            _EnableADAL == "yes" ? 1 : (_EnableADAL == "no" ? 0 : null),
+            _EnableADAL == 0 ? 1 : (_EnableADAL == 1 ? 0 : null),
             logger
         );
 
-        var _DisableADALatopWAMOverride = logger?.Question("Disable ADAL-atop WAM Override", ["yes", "no", "null"], "null");
+        var _DisableADALatopWAMOverride = logger?.Choice("Disable ADAL-atop WAM Override", ["yes", "no", "none"], 2);
         SetCurrentUser(
             Registry.CurrentUser,
             @"Software\Microsoft\Office\16.0\Common\Identity",
             "DisableADALatopWAMOverride",
-            _DisableADALatopWAMOverride == "yes" ? 1 : (_DisableADALatopWAMOverride == "no" ? 0 : null),
+            _DisableADALatopWAMOverride == 0 ? 1 : (_DisableADALatopWAMOverride == 1 ? 0 : null),
             logger
         );
 
-        var _ExcludeExplicitO365Endpoint = logger?.Question("Exclude Explicit O365 Endpoint", ["yes", "no", "null"], "null");
+        var _ExcludeExplicitO365Endpoint = logger?.Choice("Exclude Explicit O365 Endpoint", ["yes", "no", "none"], 2);
         SetCurrentUser(
             Registry.CurrentUser,
             @"Software\Microsoft\Office\16.0\Outlook\Autodiscover",
             "ExcludeExplicitO365Endpoint",
-            _ExcludeExplicitO365Endpoint == "yes" ? 1 : (_ExcludeExplicitO365Endpoint == "no" ? 0 : null),
+            _ExcludeExplicitO365Endpoint == 0 ? 1 : (_ExcludeExplicitO365Endpoint == 1 ? 0 : null),
             logger
         );
 
-        var _ExcludeHttpsRootDomain = logger?.Question("Exclude Https Root Domain", ["yes", "no", "null"], "null");
+        var _ExcludeHttpsRootDomain = logger?.Choice("Exclude Https Root Domain", ["yes", "no", "none"], 2);
         SetCurrentUser(
             Registry.CurrentUser,
             @"Software\Microsoft\Office\16.0\Outlook\Autodiscover",
             "ExcludeHttpsRootDomain",
-            _ExcludeHttpsRootDomain == "yes" ? 1 : (_ExcludeHttpsRootDomain == "no" ? 0 : null),
+            _ExcludeHttpsRootDomain == 0 ? 1 : (_ExcludeHttpsRootDomain == 1 ? 0 : null),
             logger
         );
     }
