@@ -13,9 +13,8 @@ public class Help : ICommand
     public class GroupInfo
     {
         public string name;
-        public string description;
         public bool forceVisible;
-        public Dictionary<string, CommandInfo> commands;
+        public Dictionary<string, CommandInfo> commands = [];
     }
 
     public class CommandInfo
@@ -55,42 +54,46 @@ public class Help : ICommand
             return true;
         }
 
-        var groups = new Dictionary<string, GroupInfo>();
+        var groups = new Dictionary<string, GroupInfo>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var group in _availableCommands.OfType<ICommandGroup>().Where(c => !CommandMetadata.IsHidden(c)))
+        // Group commands by namespace (auto-detect groups)
+        foreach (var command in _availableCommands.Where(c => !CommandMetadata.IsHidden(c)))
         {
-            var groupName = CommandMetadata.GetName(group);
-            var groupDescription = CommandMetadata.GetDescription(group);
+            var groupName = CommandLoader.GetGroupName(command);
+
+            // Skip top-level commands for now (will be added at the end)
+            if (groupName == null)
+            {
+                continue;
+            }
 
             if (!groups.TryGetValue(groupName, out var groupInfo))
             {
                 groupInfo = new()
                 {
                     name = groupName,
-                    description = groupDescription,
                     forceVisible = Filter(groupName),
-                    commands = []
                 };
 
                 groups.Add(groupName, groupInfo);
             }
 
+            var commandName = CommandMetadata.GetName(command);
             var exactMatch = FilterExact(groupName);
 
-            foreach (var command in group.SubCommands)
+            if (!exactMatch && !Filter(commandName))
             {
-                var commandName = CommandMetadata.GetName(command);
+                continue;
+            }
 
-                if (!exactMatch && !Filter(commandName))
-                {
-                    continue;
-                }
-
+            // Avoid duplicate command names in same group
+            if (!groupInfo.commands.ContainsKey(commandName))
+            {
                 groupInfo.commands.Add(commandName, new()
                 {
                     name = commandName,
                     description = CommandMetadata.GetDescription(command),
-                    type = command.GetType().Namespace.Contains(".Plugins.") ? "Plugin" : "Core"
+                    type = CommandLoader.IsPlugin(command) ? "Plugin" : "Core"
                 });
             }
         }
@@ -107,7 +110,6 @@ public class Help : ICommand
             }
 
             logger?.Write($"  {group.name,-15}", newLine: false, color: ConsoleColor.Yellow);
-            logger?.Write(group.description, newLine: false);
             logger?.Write();
 
             foreach (var command in group.commands.Values.OrderBy(x => x.name))
@@ -121,7 +123,8 @@ public class Help : ICommand
             logger?.Write();
         }
 
-        foreach (var command in _availableCommands.Where(c => c is not ICommandGroup && !CommandMetadata.IsHidden(c)).OrderBy(CommandMetadata.GetName))
+        // Show top-level commands (not in any group)
+        foreach (var command in _availableCommands.Where(c => !CommandLoader.IsGroupedCommand(c) && !CommandMetadata.IsHidden(c)).OrderBy(CommandMetadata.GetName))
         {
             if (Filter(CommandMetadata.GetName(command)))
             {

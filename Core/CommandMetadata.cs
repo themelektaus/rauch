@@ -79,24 +79,6 @@ public static class CommandMetadata
     }
 
     /// <summary>
-    /// Checks if a command is a group
-    /// </summary>
-    public static bool IsGroup(ICommand command)
-    {
-        var attr = GetAttribute(command);
-        return attr?.IsGroup ?? false;
-    }
-
-    /// <summary>
-    /// Checks if a command is a group (type-based)
-    /// </summary>
-    public static bool IsGroup(Type type)
-    {
-        var attr = GetAttribute(type);
-        return attr?.IsGroup ?? false;
-    }
-
-    /// <summary>
     /// Checks if a command is hidden
     /// </summary>
     public static bool IsHidden(ICommand command)

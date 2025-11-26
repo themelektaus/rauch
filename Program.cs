@@ -11,20 +11,11 @@ services.RegisterSingleton<ILogger>(logger);
 // Show verbose plugin logging only when displaying help
 var commands = CommandLoader.LoadCommands(logger, verbosePluginLogging: args.Length == 0 || args[0] == "update");
 
-// Register Help command for use in BaseCommandGroup
+// Register Help command
 var helpCommand = CommandLoader.FindCommand<Help>(commands, "help");
 if (helpCommand is not null)
 {
     services.RegisterSingleton(helpCommand);
-}
-
-if (args.Length > 0 && args[0].Equals("help", StringComparison.OrdinalIgnoreCase))
-{
-    if (helpCommand is not null)
-    {
-        await helpCommand.ExecuteAsync([], services);
-    }
-    return;
 }
 
 if (args.Length == 0)
@@ -34,32 +25,40 @@ if (args.Length == 0)
     return;
 }
 
-
-
-// Find the matching command
-var command = CommandLoader.FindCommand(commands, args[0]);
-
-if (command is null)
+if (args.Length >= 1)
 {
-    // Unknown command - show help with args as search keywords
-    if (helpCommand is not null)
+    var command = CommandLoader.FindCommand(commands, args[0]);
+    if (command is not null)
     {
-        await helpCommand.ExecuteAsync(args, services);
+        await ValidateAndExecuteAsync(command, args.Skip(1).ToArray());
+        return;
     }
 }
-else
-{
-    // Execute command with remaining arguments
-    var commandArgs = args.Skip(1).ToArray();
 
-    // Validate arguments
-    var validationResult = CommandMetadata.ValidateArguments(command, commandArgs);
-    if (!validationResult.IsValid)
+if (args.Length >= 2)
+{
+    var command = CommandLoader.FindCommand(commands, args[0], args[1]);
+    if (command is not null)
     {
-        logger.Error($"Validation error: {validationResult.ErrorMessage}");
-        logger.Info($"Usage: {CommandMetadata.GetUsage(command)}");
+        await ValidateAndExecuteAsync(command, args.Skip(2).ToArray());
+        return;
+    }
+}
+
+if (helpCommand is not null)
+{
+    await helpCommand.ExecuteAsync(args, services);
+}
+
+async Task ValidateAndExecuteAsync(ICommand command, string[] args)
+{
+    var validationResult = CommandMetadata.ValidateArguments(command, args);
+    if (validationResult.IsValid)
+    {
+        await command.ExecuteAsync(args, services);
         return;
     }
 
-    await command.ExecuteAsync(commandArgs, services);
+    logger.Error($"Validation error: {validationResult.ErrorMessage}");
+    logger.Info($"Usage: {CommandMetadata.GetUsage(command)}");
 }

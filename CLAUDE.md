@@ -32,23 +32,21 @@ dotnet run update                  # Update rauch from GitHub
 
 ### Command Discovery Pattern
 
-The application uses a **namespace-based reflection system** to automatically discover and load commands:
+The application uses a **namespace-based reflection system** to automatically discover, load, and group commands:
 
-1. **Command Groups**:
-   - Located in `Commands/<GroupName>/` or `Plugins/<GroupName>/` subdirectories
-   - Must inherit from `BaseCommandGroup` and have `[Command(IsGroup = true)]` attribute
-   - By convention named `_Index.cs`, but any filename works
-   - Automatically loads all `ICommand` implementations (excluding `ICommandGroup`) with matching namespace suffix
-   - Uses namespace suffix matching (e.g., `Rauch.Commands.Run` loads all types in namespaces ending with `.Run`)
-   - Example: `Plugins/Install/_Index.cs` (namespace `Rauch.Plugins.Install`) loads `Plugins/Install/Claude.cs`, `Plugins/Install/Rauchmelder.cs`, etc.
-   - Example: `Commands/Run/_Index.cs` (namespace `Rauch.Commands.Run`) loads `Commands/Run/Ping.cs`
-   - Example: `Commands/Windows/_Index.cs` (namespace `Rauch.Commands.Windows`) loads `Commands/Windows/WinRm.cs`, `Commands/Windows/Update.cs`
+1. **Command Groups** (automatic namespace-based grouping):
+   - Commands in `Rauch.Commands.<GroupName>` or `Rauch.Plugins.<GroupName>` namespaces are automatically grouped
+   - No explicit group definition file needed - groups are derived from namespace
+   - Example: `Commands/Run/Ping.cs` with namespace `Rauch.Commands.Run` → group `run`, command `ping`
+   - Example: `Plugins/Install/Claude.cs` with namespace `Rauch.Plugins.Install` → group `install`, command `claude`
+   - Invoked as `rauch <group> <subcommand>` (e.g., `rauch run ping`, `rauch install claude`)
 
-2. **Individual Commands**:
+2. **Top-Level Commands**:
    - Located in `Commands/` (root level)
    - Implement `ICommand` interface directly
-   - Must be in `Rauch.Commands` namespace
+   - Must be in `Rauch.Commands` namespace (without subnamespace)
    - Loaded as top-level commands (e.g., `help`, `update`, `debug`)
+   - Invoked as `rauch <command>` (e.g., `rauch help`, `rauch update`)
 
 3. **Plugin Commands**:
    - Located in `Plugins/` directory as `.cs` source files
@@ -59,13 +57,11 @@ The application uses a **namespace-based reflection system** to automatically di
    - See **Plugin System** section for details
 
 4. **Command Loading Rules** (see `CommandLoader.cs`):
-   - **Multi-stage loading process**:
-     1. Load `ICommandGroup` from `Rauch.Commands.*` subnamespaces (e.g., `Rauch.Commands.Run`, `Rauch.Commands.Windows`)
-     2. Load `ICommand` from `Rauch.Commands` namespace (top-level commands)
-     3. Load `ICommandGroup` from `Rauch.Plugins.*` subnamespaces (with duplicate name avoidance)
-     4. Load `ICommand` from `Rauch.Plugins` namespace (with duplicate name avoidance)
-   - SubCommands are automatically loaded by `BaseCommandGroup` and NOT loaded as top-level commands
-   - Duplicate avoidance ensures Commands take precedence over Plugins with same name
+   - All `ICommand` types from `Rauch.Commands`, `Rauch.Commands.*`, `Rauch.Plugins`, and `Rauch.Plugins.*` namespaces are loaded
+   - Groups are automatically created based on namespace suffix (e.g., `Rauch.Commands.Run` → group `run`)
+   - `CommandLoader.GetGroupName(command)` extracts group name from namespace
+   - `CommandLoader.IsGroupedCommand(command)` checks if command belongs to a group
+   - `CommandLoader.IsPlugin(command)` checks if command is from `Rauch.Plugins` namespace
    - `Help` command is special-cased and added after all other commands
 
 ### Attribute-Based Metadata System
@@ -91,7 +87,6 @@ public class Sum : ICommand
 - `Name` (required): Command name
 - `Description` (optional): Command description (default: empty string)
 - `Parameters`: Optional usage string (auto-generated if omitted)
-- `IsGroup`: Set to `true` for command groups
 - `Hidden`: Hides command from help output (still executable)
 
 ### Validation System
@@ -190,8 +185,7 @@ Plugins/
 │   ├── Run.dll
 │   ├── Run.hash
 │   └── ...
-├── Install/                     # Plugin command group
-│   ├── _Index.cs                # Group definition
+├── Install/                     # Plugin command group (namespace: Rauch.Plugins.Install)
 │   ├── Claude.cs                # Install Claude Code
 │   ├── Office.cs                # Install Microsoft Office
 │   ├── Teams.cs                 # Install Microsoft Teams
@@ -199,26 +193,22 @@ Plugins/
 │   ├── VcRedist22.cs            # Install VC++ Redistributable
 │   ├── Nxlog.cs                 # Install NXLog
 │   └── Nxlog.ps1                # Embedded PowerShell script
-├── Run/                         # Run portable tools
-│   ├── _Index.cs
+├── Run/                         # Run portable tools (namespace: Rauch.Plugins.Run)
 │   ├── Everything.cs            # Everything Search Engine
 │   ├── ProcExp.cs               # Process Explorer
 │   ├── TreeSize.cs              # TreeSize Free
 │   ├── PsExec.cs                # PsExec
 │   ├── Speedtest.cs             # Speedtest CLI
 │   └── Speedtest.ps1
-├── Windows/                     # Windows configuration
-│   ├── _Index.cs
+├── Windows/                     # Windows configuration (namespace: Rauch.Plugins.Windows)
 │   ├── Win11Ready.cs            # Check Windows 11 readiness
 │   ├── Activate.cs              # Activate Windows
 │   └── Logout.ps1               # Logout script
-├── Uninstall/                   # Uninstall tools
-│   ├── _Index.cs
+├── Uninstall/                   # Uninstall tools (namespace: Rauch.Plugins.Uninstall)
 │   ├── Cwa.cs                   # Uninstall ConnectWise
 │   ├── Nxlog.cs                 # Uninstall NXLog
 │   └── Nxlog.ps1
-└── Gump/                        # Windows setup wizards
-    ├── _Index.cs
+└── Gump/                        # Windows setup wizards (namespace: Rauch.Plugins.Gump)
     ├── Basic.cs                 # System-level configuration (admin)
     └── Usr.cs                   # User-level configuration
 ```
@@ -239,16 +229,9 @@ public class HelloPlugin : ICommand
 }
 ```
 
-**Explicit Plugin** (with all usings and namespace):
+**Plugin in a Group** (with namespace):
 ```csharp
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Rauch.Commands;
-using Rauch.Core;
-using Rauch.Core.Attributes;
-
-namespace Rauch.Plugins;
+namespace Rauch.Plugins.Install;
 
 [Command("hello", "Greets the user", Parameters = "[name]")]
 public class HelloPlugin : ICommand
@@ -291,7 +274,7 @@ using System.Threading.Tasks;
 
 **Automatically Injected Namespace**:
 ```csharp
-namespace Rauch.Plugins;
+namespace Rauch.Plugins.<GroupName>;
 ```
 
 **Behavior**:
@@ -315,11 +298,12 @@ namespace Rauch.Plugins;
 
 ### Plugin Development Workflow
 
-1. Create `.cs` file in `Plugins/` directory (or subdirectory for groups)
-2. Write minimal command class (auto-injection handles the rest)
-3. Run application - plugin compiles automatically
-4. Edit plugin source - changes detected and recompiled automatically
-5. No restart needed for subsequent runs (cached until changed)
+1. Create `.cs` file in `Plugins/<GroupName>/` directory
+2. Use namespace `Rauch.Plugins.<GroupName>` (or let it be auto-injected)
+3. Write minimal command class (auto-injection handles the rest)
+4. Run application - plugin compiles automatically
+5. Edit plugin source - changes detected and recompiled automatically
+6. No restart needed for subsequent runs (cached until changed)
 
 ### Plugin Cache Management
 
@@ -341,7 +325,7 @@ namespace Rauch.Plugins;
 
 ## Adding New Commands
 
-### Creating an Individual Command
+### Creating a Top-Level Command
 
 1. Create file in `Commands/<CommandName>.cs`
 2. Use namespace `Rauch.Commands`
@@ -368,32 +352,38 @@ public class MyCommand : ICommand
 }
 ```
 
-### Creating a Command Group with Subcommands
+### Creating a Grouped Command (Subcommand)
 
 1. Create folder `Commands/<GroupName>/`
-2. Create a file (by convention `_Index.cs`) with `BaseCommandGroup`:
-   ```csharp
-   namespace Rauch.Commands.<GroupName>;
+2. Create subcommand files in the folder with namespace `Rauch.Commands.<GroupName>`
+3. Each file implements `ICommand` with `[Command]` attribute
+4. Groups are automatically created based on namespace - no index file needed!
 
-   [Command("groupname", IsGroup = true)]
-   public class _Index : BaseCommandGroup { }
-   ```
-   **Note**: The filename can be anything; what matters is:
-   - Inheriting from `BaseCommandGroup`
-   - Having `[Command(IsGroup = true)]` attribute
-   - Using the correct namespace
-   - Description is optional for groups
-3. Add subcommand files in same folder (e.g., `Commands/GroupName/SubCommand.cs`)
-4. Subcommands (all `ICommand` implementations that are not `ICommandGroup`) are **automatically loaded** by `BaseCommandGroup` via namespace suffix matching
+```csharp
+namespace Rauch.Commands.Run;
 
-**Important**: Subcommands in a group namespace are **NOT** loaded as top-level commands by `CommandLoader`.
+[Command("ping", "Ping hosts", Parameters = "<host1> <host2> ...")]
+[MinArguments(1)]
+public class Ping : ICommand
+{
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    {
+        var logger = services.GetService<ILogger>();
+        // Implementation
+        await Task.CompletedTask;
+    }
+}
+```
+
+This command is automatically available as `rauch run ping`.
 
 ### Creating a Plugin Command
 
 1. Create file in `Plugins/<GroupName>/<PluginName>.cs`
-2. Write minimal command class (using/namespace optional - auto-injected)
-3. Plugin compiles automatically on next run
-4. See **Plugin System** section for details
+2. Use namespace `Rauch.Plugins.<GroupName>` (or omit for auto-injection)
+3. Write minimal command class (using/namespace optional - auto-injected)
+4. Plugin compiles automatically on next run
+5. See **Plugin System** section for details
 
 ### Hidden/Debug Commands
 
@@ -407,12 +397,11 @@ Hidden commands execute normally but don't appear in help output.
 ## Key Files
 
 **Application Entry**:
-- `Program.cs`: Entry point, DI setup, command routing, validation, plugin verbose logging control
+- `Program.cs`: Entry point, DI setup, command routing (supports `group subcommand` syntax), validation
 
 **Core Infrastructure**:
-- `Core/CommandLoader.cs`: Reflection-based command discovery (top-level + plugins)
+- `Core/CommandLoader.cs`: Reflection-based command discovery with automatic namespace-based grouping
 - `Core/PluginLoader.cs`: Runtime C# compilation, caching, auto-injection
-- `Core/BaseCommandGroup.cs`: Base class for groups, loads subcommands via reflection
 - `Core/CommandMetadata.cs`: Cached reflection helper for reading attributes
 - `Core/CommandUtils.cs`: Static utility methods for plugins (SetWorkingDirectory, DownloadFile, Unzip, StartProcess, etc.)
 - `Core/ServiceContainer.cs`: Lightweight DI container
@@ -425,7 +414,6 @@ Hidden commands execute normally but don't appear in help output.
 
 **Interfaces**:
 - `Core/Interfaces/ICommand.cs`: All commands implement this (async pattern)
-- `Core/Interfaces/ICommandGroup.cs`: Extends ICommand with SubCommands property
 - `Core/Interfaces/ILogger.cs`: Logger interface with severity levels and interactive UI
 
 **Attributes**:
@@ -433,7 +421,7 @@ Hidden commands execute normally but don't appear in help output.
 - `Core/Attributes/ValidationAttribute.cs`: Base class for argument validators
 
 **Project Configuration**:
-- `rauch.csproj`: .NET 10.0 project with unsafe blocks enabled, excludes `Plugins/` from compilation in Release, generates `Usings.g.cs` during build, includes `Logo.ico` as application icon
+- `rauch.csproj`: .NET 10.0 project with unsafe blocks enabled, copies `Plugins/` to output, generates `Usings.g.cs` during build, includes `Logo.ico` as application icon
 - `Usings.cs`: Global using statements (converted to plugin usings during build)
 - `Usings.g.cs`: Auto-generated file containing `Usings` class with `Namespaces` array (generated by `Usings.ps1`)
 - `Usings.ps1`: PowerShell script that generates `Usings.g.cs` from `Usings.cs` during build
@@ -463,19 +451,17 @@ Hidden commands execute normally but don't appear in help output.
 2. **Attributes over properties**: Metadata is declared via attributes, never exposed as properties
 3. **Async-first**: All commands use `Task ExecuteAsync()` for future-proofing
 4. **Validation before execution**: Arguments validated in `Program.cs` before calling `ExecuteAsync`
-5. **Namespace-based organization**: Command groups use namespace suffix matching with `IsGroup = true` attribute (filename convention: `_Index.cs`)
-6. **Multi-stage loading**: `CommandLoader` uses separate stages for ICommandGroup and ICommand from Commands/Plugins namespaces
-7. **Duplicate avoidance**: Commands take precedence over Plugins with same namespace suffix
-8. **Separation of concerns**: Top-level commands loaded by `CommandLoader`, subcommands loaded by `BaseCommandGroup`
-9. **Colored logging**: All console output uses ILogger with color-coded severity levels
-10. **Centralized using statements**: All using statements managed in `Usings.cs`, auto-generated for plugins via build process
-11. **Runtime plugin compilation**: Roslyn-based C# 13 compilation for plugins
-12. **Aggressive caching**: SHA256-based cache invalidation for fast startup
-13. **Auto-injection**: Minimal plugin boilerplate via automatic code injection
-14. **Verbose logging control**: Silent by default, verbose only when needed (help/compilation)
-15. **Static utility methods**: Common plugin operations (download, unzip, process start) in `CommandUtils` with `using static`
-16. **Interactive console UI**: Choice menus and question prompts for user interaction
-17. **Plugin PowerShell support**: Plugins can have associated .ps1 scripts in their directories
+5. **Namespace-based grouping**: Command groups are automatically derived from namespace (e.g., `Rauch.Commands.Run` → group `run`)
+6. **No explicit group definitions**: Groups are created automatically - no `_Index.cs` or `BaseCommandGroup` needed
+7. **Colored logging**: All console output uses ILogger with color-coded severity levels
+8. **Centralized using statements**: All using statements managed in `Usings.cs`, auto-generated for plugins via build process
+9. **Runtime plugin compilation**: Roslyn-based C# 13 compilation for plugins
+10. **Aggressive caching**: SHA256-based cache invalidation for fast startup
+11. **Auto-injection**: Minimal plugin boilerplate via automatic code injection
+12. **Verbose logging control**: Silent by default, verbose only when needed (help/compilation)
+13. **Static utility methods**: Common plugin operations (download, unzip, process start) in `CommandUtils` with `using static`
+14. **Interactive console UI**: Choice menus and question prompts for user interaction
+15. **Plugin PowerShell support**: Plugins can have associated .ps1 scripts in their directories
 
 ## Dependencies
 
@@ -488,9 +474,9 @@ Hidden commands execute normally but don't appear in help output.
 ## Development Guidelines
 
 1. **Adding Commands**:
-   - Use individual commands in `Commands/` namespace for core functionality
+   - Use top-level commands in `Rauch.Commands` namespace for core functionality
+   - Use grouped commands in `Rauch.Commands.<GroupName>` for related commands
    - Prefer plugins for experimental/optional commands
-   - Use command groups for related commands (e.g., `install`, `uninstall`, `run`, `gump`)
 2. **Using Statements**:
    - Core code: Use global using statements in `Usings.cs`
    - Plugins: Using statements auto-injected from `Usings.g.cs` (no manual usings needed)
@@ -498,7 +484,11 @@ Hidden commands execute normally but don't appear in help output.
 4. **Validation**: Use ValidationAttributes instead of manual checks
 5. **Async**: Always use async/await properly, even if no async operations
 6. **Cache**: Trust the plugin cache system - it handles invalidation automatically
-7. **Namespace**: Commands in `Rauch.Commands`, groups in `Rauch.Commands.<GroupName>`, plugins in `Rauch.Plugins.<GroupName>`
+7. **Namespace**:
+   - Top-level commands: `Rauch.Commands`
+   - Grouped commands: `Rauch.Commands.<GroupName>`
+   - Top-level plugins: `Rauch.Plugins`
+   - Grouped plugins: `Rauch.Plugins.<GroupName>`
 8. **Utility Methods**: Use `CommandUtils` static methods in plugins (available via `using static Rauch.Core.CommandUtils`):
    - `SetWorkingDirectory(path, logger)`: Create and set working directory
    - `DownloadFile(url, filePath, logger, ct)`: Download file with progress
@@ -621,7 +611,7 @@ public class Teams : ICommand
 }
 ```
 
-### Example 4: Plugin with Embedded PowerShell Script
+### Example 4: Core Command with Embedded PowerShell Script
 ```csharp
 namespace Rauch.Commands.Windows;
 

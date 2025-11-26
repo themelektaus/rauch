@@ -35,7 +35,7 @@ public sealed class PluginLoader
     /// <summary>
     /// Loads all .cs files from the plugin directory and compiles them into commands
     /// Uses cached assemblies when source hasn't changed
-    /// Supports both root-level plugins and command groups
+    /// Supports both root-level plugins and command groups (via namespace)
     /// </summary>
     List<ICommand> LoadPlugins(bool verboseLogging = false)
     {
@@ -69,7 +69,7 @@ public sealed class PluginLoader
             }
         }
 
-        // 2. Load plugin groups
+        // 2. Load plugin groups (subdirectories)
         var subdirectories = Directory.GetDirectories(_pluginDirectory)
             .Where(d => !d.EndsWith($"{Path.DirectorySeparatorChar}.cache"))
             .ToArray();
@@ -85,7 +85,7 @@ public sealed class PluginLoader
 
                 compilationInfo.Add((
                     name: Path.GetFileName(subdir),
-                    commandCount: groupCommands.Select(x => x.GetCommandCount()).Sum(),
+                    commandCount: groupCommands.Count,
                     wasCompiled
                 ));
             }
@@ -113,26 +113,14 @@ public sealed class PluginLoader
         return commands;
     }
 
+    /// <summary>
+    /// Loads plugins and adds them to the commands list
+    /// Plugin commands are simply added - grouping is determined by namespace
+    /// </summary>
     public void LoadPluginsInto(List<ICommand> commands, bool verboseLogging = false)
     {
         var pluginCommands = LoadPlugins(verboseLogging);
-
-        foreach (var pluginCommand in pluginCommands)
-        {
-            if (pluginCommand is ICommandGroup pluginCommandGroup)
-            {
-                var n = pluginCommand.GetType().Namespace.Split('.').Last();
-
-                var commandGroup = commands.FirstOrDefault(c => c is ICommandGroup && c.GetType().Namespace.Split('.').Last() == n) as ICommandGroup;
-                if (commandGroup is not null)
-                {
-                    commandGroup.AddSubCommandsFromOtherGroup(pluginCommandGroup);
-                    continue;
-                }
-            }
-
-            commands.Add(pluginCommand);
-        }
+        commands.AddRange(pluginCommands);
     }
 
     /// <summary>
@@ -177,7 +165,7 @@ public sealed class PluginLoader
     /// Loads a plugin group (multiple .cs files) using cached DLL if available
     /// Returns tuple of (commands, wasCompiled)
     /// </summary>
-    private (List<ICommandGroup> commandGroups, bool wasCompiled) LoadPluginGroupWithCache(string groupDir, string[] csFiles, bool verboseLogging)
+    private (List<ICommand> commands, bool wasCompiled) LoadPluginGroupWithCache(string groupDir, string[] csFiles, bool verboseLogging)
     {
         var groupName = Path.GetFileName(groupDir);
         var cachedDllPath = Path.Combine(_cacheDirectory, $"{groupName}.dll");
@@ -199,7 +187,7 @@ public sealed class PluginLoader
                     _logger?.Debug($"Loading {groupName} from cache");
                 }
 
-                return (LoadFromAssembly<ICommandGroup>(File.ReadAllBytes(cachedDllPath), isGroup: true), false);
+                return (LoadFromAssembly<ICommand>(File.ReadAllBytes(cachedDllPath)), false);
             }
         }
 
@@ -227,8 +215,7 @@ public sealed class PluginLoader
     /// Loads commands from a pre-compiled assembly
     /// Uses duck-typing to find types with ExecuteAsync method and CommandAttribute
     /// </summary>
-    /// <param name="isGroup">If true, only loads the command group, not subcommands</param>
-    private List<T> LoadFromAssembly<T>(byte[] rawAssembly, bool isGroup = false) where T : ICommand
+    private List<T> LoadFromAssembly<T>(byte[] rawAssembly) where T : ICommand
     {
         var commands = new List<T>();
 
@@ -243,22 +230,6 @@ public sealed class PluginLoader
         {
             try
             {
-                // For plugin groups, only load class marked with IsGroup = true
-                if (isGroup)
-                {
-                    var commandAttr = type.GetCustomAttributesData()
-                        .FirstOrDefault(a => a.AttributeType.Name == "CommandAttribute");
-
-                    var isGroupAttr = commandAttr?.NamedArguments
-                        .FirstOrDefault(a => a.MemberName == "IsGroup");
-
-                    if (isGroupAttr == null || !(isGroupAttr.Value.TypedValue.Value is bool isGroupValue) || !isGroupValue)
-                    {
-                        // Skip non-group commands
-                        continue;
-                    }
-                }
-
                 // Check if it has ExecuteAsync method (duck-typing)
                 var executeMethod = type.GetMethod("ExecuteAsync", new[]
                 {
@@ -319,7 +290,7 @@ public sealed class PluginLoader
     /// Automatically injects required using statements if missing
     /// Combines all files into a single namespace
     /// </summary>
-    private List<ICommandGroup> CompileAndLoadPluginGroup(string groupName, string outputPath, string[] csFiles)
+    private List<ICommand> CompileAndLoadPluginGroup(string groupName, string outputPath, string[] csFiles)
     {
         var allUsings = new HashSet<string>();
         var allClassDefinitions = new List<string>();
@@ -331,7 +302,6 @@ public sealed class PluginLoader
             var source = File.ReadAllText(csFile);
             var lines = source.Split(["\r\n", "\r", "\n"], StringSplitOptions.None);
 
-            var usings = new List<string>();
             var classContent = new List<string>();
             var insideNamespace = false;
 
@@ -390,7 +360,7 @@ public sealed class PluginLoader
         combinedSource.AppendLine();
 
         // Add namespace with block-scoped syntax
-        var namespaceName = (commonNamespace ?? "namespace Rauch.Plugins.Generated")
+        var namespaceName = (commonNamespace ?? $"namespace Rauch.Plugins.{groupName}")
             .TrimEnd(';')
             .Replace("namespace ", "")
             .Trim();
@@ -423,7 +393,7 @@ public sealed class PluginLoader
             throw new InvalidOperationException($"Compilation failed:\n{compilerResult.error}");
         }
 
-        return LoadFromAssembly<ICommandGroup>(File.ReadAllBytes(outputPath), isGroup: true);
+        return LoadFromAssembly<ICommand>(File.ReadAllBytes(outputPath));
     }
 
     /// <summary>
