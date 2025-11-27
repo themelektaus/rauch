@@ -5,7 +5,10 @@ Console.CursorVisible = true;
 Console.ForegroundColor = ConsoleColor.Gray;
 Console.BackgroundColor = ConsoleColor.Black;
 
-SoundPlayer.LoadSounds();
+if (!File.Exists("no-sounds"))
+{
+    SoundPlayer.LoadSounds();
+}
 
 // Setup dependency injection container
 var services = new ServiceContainer();

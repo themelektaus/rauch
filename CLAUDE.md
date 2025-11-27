@@ -181,6 +181,11 @@ SoundPlayer.Play("Success");  // Play success sound (fire-and-forget)
 SoundPlayer.Play("Error");    // Play error sound (fire-and-forget)
 ```
 
+**Disabling Sounds**:
+- Run `rauch sounds` command to toggle sound effects on/off
+- Alternatively, create/delete a file named `no-sounds` in the application directory
+- Sounds are conditionally loaded only if the `no-sounds` file does not exist
+
 **Program Exit**:
 - `Program.cs` calls `await SoundPlayer.WaitAndDispose()` before exit to ensure all sounds complete and resources are cleaned up
 

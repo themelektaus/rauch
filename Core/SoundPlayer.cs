@@ -21,6 +21,24 @@ public static class SoundPlayer
         }
     }
 
+    public static void Play(string name)
+    {
+        soundEffects.FirstOrDefault(x => x.name == name)?.Play();
+    }
+
+    public static async Task WaitAndDispose()
+    {
+        while (business != 0)
+        {
+            await Task.Delay(100);
+        }
+
+        foreach (var soundEffect in soundEffects)
+        {
+            soundEffect.Dispose();
+        }
+    }
+
     public class SoundEffect : IDisposable
     {
         public readonly string name;
@@ -97,24 +115,6 @@ public static class SoundPlayer
                 reader.Dispose();
                 business--;
             });
-        }
-    }
-
-    public static void Play(string name)
-    {
-        soundEffects.FirstOrDefault(x => x.name == name).Play();
-    }
-
-    public static async Task WaitAndDispose()
-    {
-        while (business != 0)
-        {
-            await Task.Delay(100);
-        }
-
-        foreach (var soundEffect in soundEffects)
-        {
-            soundEffect.Dispose();
         }
     }
 }
