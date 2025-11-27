@@ -211,12 +211,12 @@ The `ILogger` interface provides interactive methods:
 
 The `SoundPlayer` class provides audio feedback using NAudio (fire-and-forget, no await needed):
 
-- `SoundPlayer.PlaySuccess()`: Success completion sound
-- `SoundPlayer.PlayError()`: Error sound (called automatically by `logger.Error()`)
-- `SoundPlayer.PlayWarning()`: Warning sound (called automatically by `logger.Warning()`)
-- `SoundPlayer.PlayHelp()`: Help/quick action sound
+- `SoundPlayer.Play("Success")`: Success completion sound (called automatically by `logger.Success()`)
+- `SoundPlayer.Play("Error")`: Error sound (called automatically by `logger.Error()`)
+- `SoundPlayer.Play("Warning")`: Warning sound (called automatically by `logger.Warning()`)
+- `SoundPlayer.Play("Help")`: Help/quick action sound
 
-Sounds have built-in debouncing to prevent audio overlap when called rapidly.
+Sounds are configured via companion INI files (`*.wav.ini`) with Volume and Duration properties. Built-in debouncing prevents audio overlap when called rapidly.
 
 ## Project Structure
 
@@ -351,6 +351,7 @@ This command is automatically available as `rauch run ping`.
 
 - **Microsoft.CodeAnalysis.CSharp** (v4.12.0): Roslyn compiler for plugin system
 - **NAudio** (v2.2.1): Cross-platform audio playback for sound effects
+- **ini-parser-netstandard** (v2.5.3): INI file parsing for sound configuration
 
 ## Documentation
 

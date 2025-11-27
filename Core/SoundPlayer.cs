@@ -1,36 +1,53 @@
-﻿using NAudio.Wave;
+﻿using IniParser;
+using NAudio.Wave;
+using System.Text.RegularExpressions;
 
 namespace Rauch.Core;
 
 public static class SoundPlayer
 {
-    static readonly HashSet<SoundEffect> soundEffects =
-    [
-        new("Enter") { duration = 0.7f },
-        new("Error1") { duration = 0.4f },
-        new("Error2") { duration = 0.6f },
-        new("Error3") { duration = 0.7f },
-        new("Granted") { duration = 0.7f },
-        new("LevelUp") { duration = 1.4f },
-        new("Nope") { duration = 0.8f },
-        new("Reject") { duration = 0.7f },
-        new("Success") { duration = 0.9f },
-        new("Whip") { duration = 0.6f },
-    ];
-
     static int business;
 
-    public class SoundEffect(string name) : IDisposable
+    static readonly HashSet<SoundEffect> soundEffects = [];
+
+    public static void LoadSounds()
     {
-        public readonly string name = name;
+        foreach (var resourceName in typeof(SoundPlayer).Assembly.GetManifestResourceNames())
+        {
+            if (Regex.Match(resourceName, @"^rauch.Sounds\.(.+?)\.wav$").Groups[1].Value is string name && !string.IsNullOrEmpty(name))
+            {
+                soundEffects.Add(new(name));
+            }
+        }
+    }
+
+    public class SoundEffect : IDisposable
+    {
+        public readonly string name;
 
         public float volume = .8f;
         public float? duration;
 
         DateTime lastPlaytime = DateTime.MinValue;
 
-        readonly Stream stream = typeof(Program).Assembly.GetManifestResourceStream($"rauch.Sounds.{name}.wav");
+        readonly Stream stream;
         readonly WaveOutEvent outputDevice = new();
+
+        public SoundEffect(string name)
+        {
+            this.name = name;
+
+            var assembly = typeof(Program).Assembly;
+            stream = assembly.GetManifestResourceStream($"rauch.Sounds.{name}.wav");
+
+            using var iniStream = assembly.GetManifestResourceStream($"rauch.Sounds.{name}.wav.ini");
+            using var reader = new StreamReader(iniStream);
+            var parser = new FileIniDataParser();
+            var properties = parser.ReadData(reader).Sections["Properties"];
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            this.volume = float.TryParse(properties["Volume"], culture, out var volume) ? volume : 0.8f;
+            this.duration = float.TryParse(properties["Duration"], culture, out var duration) ? duration : null;
+        }
 
         public void Dispose()
         {
@@ -42,8 +59,8 @@ public static class SoundPlayer
         {
             if (disposing)
             {
-                outputDevice?.Dispose();
                 stream?.Dispose();
+                outputDevice?.Dispose();
             }
         }
 
@@ -68,7 +85,7 @@ public static class SoundPlayer
             outputDevice.Init(reader);
             outputDevice.Volume = volume;
             outputDevice.Play();
-            
+
             _ = Task.Run(async () =>
             {
                 await Task.Delay(
@@ -83,15 +100,7 @@ public static class SoundPlayer
         }
     }
 
-    public static void PlayError() => PlayInternal("Error1");
-
-    public static void PlayWarning() => PlayInternal("Nope");
-    
-    public static void PlaySuccess() => PlayInternal("Success");
-    
-    public static void PlayHelp() => PlayInternal("Whip");
-
-    static void PlayInternal(string name)
+    public static void Play(string name)
     {
         soundEffects.FirstOrDefault(x => x.name == name).Play();
     }

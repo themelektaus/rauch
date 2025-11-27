@@ -135,9 +135,9 @@ public class Help : ICommand
         return Task.CompletedTask;
     }
 
-    public void WriteTitleLine(ILogger logger)
+    public static void WriteTitleLine(ILogger logger)
     {
-        SoundPlayer.PlayHelp();
+        SoundPlayer.Play("Help");
         logger?.Write();
         logger?.Write(" >_ ", newLine: false, color: ConsoleColor.DarkCyan);
         logger?.Write("rauch", color: ConsoleColor.Cyan);
@@ -145,12 +145,7 @@ public class Help : ICommand
 
     }
 
-    public void WriteHelpLine(ILogger logger)
-    {
-        WriteHelpLine(logger, this);
-    }
-
-    static void WriteHelpLine(ILogger logger, ICommand command)
+    public static void WriteHelpLine(ILogger logger, ICommand command)
     {
         var usage = CommandMetadata.GetUsage(command);
         var desc = CommandMetadata.GetDescription(command);

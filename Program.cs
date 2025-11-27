@@ -5,6 +5,8 @@ Console.CursorVisible = true;
 Console.ForegroundColor = ConsoleColor.Gray;
 Console.BackgroundColor = ConsoleColor.Black;
 
+SoundPlayer.LoadSounds();
+
 // Setup dependency injection container
 var services = new ServiceContainer();
 
@@ -25,8 +27,11 @@ if (helpCommand is not null)
 
 if (args.Length == 0)
 {
-    helpCommand?.WriteTitleLine(logger);
-    helpCommand?.WriteHelpLine(logger);
+    Help.WriteTitleLine(logger);
+    if (helpCommand is not null)
+    {
+        Help.WriteHelpLine(logger, helpCommand);
+    }
     goto Exit;
 }
 

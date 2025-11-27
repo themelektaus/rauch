@@ -11,6 +11,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" />
     <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="ini-parser-netstandard" Version="2.5.3" />
   </ItemGroup>
 
   <!-- Embed PowerShell scripts as resources -->
@@ -33,7 +34,15 @@
 
   <ItemGroup>
     <None Remove="Sounds\*.wav" />
+    <None Remove="Sounds\*.wav.ini" />
     <EmbeddedResource Include="Sounds\*.wav" />
+    <EmbeddedResource Include="Sounds\*.wav.ini" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Sounds\Excluded\**" />
+    <Compile Remove="Sounds\Excluded\**" />
+    <EmbeddedResource Remove="Sounds\Excluded\**" />
   </ItemGroup>
 
   <!-- Generate Usings.g.cs from Usings.cs during build -->
