@@ -24,7 +24,7 @@ public class Update : ICommand
 
             var currentDir = Path.GetDirectoryName(currentExePath);
             var tempFilePath = Path.Combine(currentDir, TempFileName);
-            var pluginsDir = Path.Combine(currentDir, "Plugins");
+            var pluginsDir = Path.Combine(currentDir, "plugins");
 
             using var httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromMinutes(5);
@@ -125,25 +125,19 @@ exit
             await File.WriteAllBytesAsync(zipPath, zipBytes, ct);
             logger?.Debug($"Downloaded Plugins.zip ({zipBytes.Length:N0} bytes)");
 
-            // Clear existing plugins directory
-            if (Directory.Exists(pluginsDir))
-            {
-                // Delete all files and subdirectories except .cache
-                foreach (var file in Directory.GetFiles(pluginsDir))
-                {
-                    File.Delete(file);
-                }
-                foreach (var dir in Directory.GetDirectories(pluginsDir))
-                {
-                    if (!Path.GetFileName(dir).Equals(".cache", StringComparison.OrdinalIgnoreCase))
-                    {
-                        Directory.Delete(dir, true);
-                    }
-                }
-            }
-            else
+            if (!Directory.Exists(pluginsDir))
             {
                 Directory.CreateDirectory(pluginsDir);
+            }
+
+            if (!Directory.Exists(pluginsDir))
+            {
+                Directory.CreateDirectory(pluginsDir);
+            }
+
+            if (Directory.Exists(Path.Combine(pluginsDir, ".cache")))
+            {
+                Directory.Delete(Path.Combine(pluginsDir, ".cache"), true);
             }
 
             // Extract ZIP to plugins directory
