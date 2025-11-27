@@ -28,8 +28,6 @@ public static class SoundPlayer
         public float volume = .8f;
         public float? duration;
 
-        TaskCompletionSource tcs;
-
         public void Dispose()
         {
             Dispose(true);
@@ -47,12 +45,9 @@ public static class SoundPlayer
 
         public async Task Play()
         {
-            while (tcs is not null)
-            {
-                await Task.Delay(50);
-            }
+            outputDevice.Stop();
 
-            tcs = new();
+            var tcs = new TaskCompletionSource();
 
             using var stream = new MemoryStream();
             this.stream.CopyTo(stream);
