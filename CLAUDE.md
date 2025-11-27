@@ -149,6 +149,8 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 - Sounds are embedded as resources from `Sounds/*.wav`
 - Uses `WaveOutEvent` for cross-platform audio playback
 - `SoundEffect` inner class manages individual sound resources with volume control and duration
+- Fire-and-forget playback (methods return `void`, not `Task`)
+- Built-in debouncing: sounds with < 100ms interval are ignored to prevent audio overlap
 
 **Available Sound Methods**:
 - `SoundPlayer.PlaySuccess()`: Success completion sound
@@ -163,12 +165,12 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 
 **Usage in Commands**:
 ```csharp
-await SoundPlayer.PlaySuccess();  // Play success sound
-await SoundPlayer.PlayError();    // Play error sound
+SoundPlayer.PlaySuccess();  // Play success sound (fire-and-forget)
+SoundPlayer.PlayError();    // Play error sound (fire-and-forget)
 ```
 
 **Program Exit**:
-- `Program.cs` calls `await SoundPlayer.Wait()` before exit to ensure all sounds complete
+- `Program.cs` calls `await SoundPlayer.WaitAndDispose()` before exit to ensure all sounds complete and resources are cleaned up
 
 ### LiveCode Compiler System
 
@@ -536,11 +538,11 @@ Hidden commands execute normally but don't appear in help output.
    - `CommandFlags.UseShellExecute`: Use shell execute for process
    - `CommandFlags.CreateNoWindow`: Create process without window
 10. **Interactive UI**: Use `logger.Choice()` for menu selection and `logger.Question()` for text input
-11. **Sound Feedback**: Use `SoundPlayer` methods for audio feedback:
-    - `await SoundPlayer.PlaySuccess()`: After successful operations
-    - `await SoundPlayer.PlayError()`: For error conditions (also called automatically by `logger.Error()`)
-    - `await SoundPlayer.PlayWarning()`: For warnings (also called automatically by `logger.Warning()`)
-    - `await SoundPlayer.PlayHelp()`: For help/quick actions
+11. **Sound Feedback**: Use `SoundPlayer` methods for audio feedback (fire-and-forget, no await needed):
+    - `SoundPlayer.PlaySuccess()`: After successful operations
+    - `SoundPlayer.PlayError()`: For error conditions (also called automatically by `logger.Error()`)
+    - `SoundPlayer.PlayWarning()`: For warnings (also called automatically by `logger.Warning()`)
+    - `SoundPlayer.PlayHelp()`: For help/quick actions
 12. **Platform Attributes**: Use `[System.Runtime.Versioning.SupportedOSPlatform("windows")]` on methods that use Windows-specific APIs (Registry, WindowsIdentity, etc.)
 
 ## Plugin Examples

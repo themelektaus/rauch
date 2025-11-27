@@ -209,12 +209,14 @@ The `ILogger` interface provides interactive methods:
 
 ### Sound Effects
 
-The `SoundPlayer` class provides audio feedback using NAudio:
+The `SoundPlayer` class provides audio feedback using NAudio (fire-and-forget, no await needed):
 
 - `SoundPlayer.PlaySuccess()`: Success completion sound
 - `SoundPlayer.PlayError()`: Error sound (called automatically by `logger.Error()`)
 - `SoundPlayer.PlayWarning()`: Warning sound (called automatically by `logger.Warning()`)
 - `SoundPlayer.PlayHelp()`: Help/quick action sound
+
+Sounds have built-in debouncing to prevent audio overlap when called rapidly.
 
 ## Project Structure
 

@@ -56,7 +56,7 @@ if (helpCommand is not null)
 }
 
 Exit:
-await SoundPlayer.Wait();
+await SoundPlayer.WaitAndDispose();
 
 async Task ValidateAndExecuteAsync(ICommand command, string[] args)
 {
