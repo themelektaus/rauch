@@ -7,6 +7,7 @@ public class Rauchmelder : ICommand
     const string RAUCHMELDER_URL = "://cloud.it-guards.at/download/rauchmelder/windows/Rauchmelder.exe";
     const string INSTALL_DIR = @"C:\ProgramData\Rauchmelder";
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var scheme = args.FirstOrDefault() == "http" ? "http" : "https";

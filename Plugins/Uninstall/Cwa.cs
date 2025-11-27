@@ -7,6 +7,7 @@ public class Cwa : ICommand
     const string AGENT_UNINSTALLER_URL = "https://s3.amazonaws.com/assets-cp/assets/Agent_Uninstaller.zip";
     const string INSTALL_DIR = @"data\CWA";
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();

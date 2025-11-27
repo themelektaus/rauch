@@ -25,13 +25,13 @@ public sealed class ConsoleLogger : ILogger
 
     public void Warning(string message, bool newLine = true)
     {
-        SoundPlayer.PlayNope();
+        SoundPlayer.PlayWarning();
         Write(message, newLine, ConsoleColor.Yellow);
     }
 
     public void Error(string message, bool newLine = true)
     {
-        SoundPlayer.PlayError1();
+        SoundPlayer.PlayError();
         Write(message, newLine, ConsoleColor.Red);
     }
 

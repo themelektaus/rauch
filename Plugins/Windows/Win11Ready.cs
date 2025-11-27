@@ -3,6 +3,7 @@ namespace Rauch.Plugins.Windows;
 [Command("win11ready", "Bypass Windows 11 hardware requirements for upgrades and installations")]
 public class Win11Ready : ICommand
 {
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();

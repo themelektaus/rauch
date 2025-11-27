@@ -2,7 +2,7 @@
 
 # rauch
 
-A modern .NET 10.0-windows command-line tool with dynamic plugin support, automatic command discovery, interactive console UI, and audio feedback.
+A modern .NET 10.0 command-line tool with dynamic plugin support, automatic command discovery, interactive console UI, and cross-platform audio feedback via NAudio.
 
 ## Features
 
@@ -20,7 +20,7 @@ A modern .NET 10.0-windows command-line tool with dynamic plugin support, automa
 
 ### Prerequisites
 
-- .NET 10.0 or later (Windows only)
+- .NET 10.0 or later
 
 ### Powershell
 
@@ -209,14 +209,12 @@ The `ILogger` interface provides interactive methods:
 
 ### Sound Effects
 
-The `SoundPlayer` class provides audio feedback:
+The `SoundPlayer` class provides audio feedback using NAudio:
 
 - `SoundPlayer.PlaySuccess()`: Success completion sound
-- `SoundPlayer.PlayError1/2/3()`: Various error sounds
-- `SoundPlayer.PlayEnter()`: Enter/confirm sound
-- `SoundPlayer.PlayGranted()`: Access granted sound
-- `SoundPlayer.PlayNope()`: Rejection sound
-- `SoundPlayer.PlayWhip()`: Quick action sound
+- `SoundPlayer.PlayError()`: Error sound (called automatically by `logger.Error()`)
+- `SoundPlayer.PlayWarning()`: Warning sound (called automatically by `logger.Warning()`)
+- `SoundPlayer.PlayHelp()`: Help/quick action sound
 
 ## Project Structure
 
@@ -350,7 +348,7 @@ This command is automatically available as `rauch run ping`.
 ## Dependencies
 
 - **Microsoft.CodeAnalysis.CSharp** (v4.12.0): Roslyn compiler for plugin system
-- **System.Windows.Extensions** (v9.0.0): Windows-specific APIs for SoundPlayer
+- **NAudio** (v2.2.1): Cross-platform audio playback for sound effects
 
 ## Documentation
 

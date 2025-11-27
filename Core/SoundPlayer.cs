@@ -1,38 +1,99 @@
-﻿namespace Rauch.Core;
+﻿using NAudio.Wave;
+
+namespace Rauch.Core;
 
 public static class SoundPlayer
 {
-    public static Task PlayEnter() => Play("Enter", 700);
-    public static Task PlayError1() => Play("Error1", 400);
-    public static Task PlayError2() => Play("Error2", 600);
-    public static Task PlayError3() => Play("Error3", 700);
-    public static Task PlayGranted() => Play("Granted", 700);
-    public static Task PlayLevelUp() => Play("LevelUp", 1400);
-    public static Task PlayNope() => Play("Nope", 800);
-    public static Task PlayReject() => Play("Reject", 700);
-    public static Task PlaySuccess() => Play("Success", 900);
-    public static Task PlayWhip() => Play("Whip", 600);
+    static readonly HashSet<SoundEffect> soundEffects =
+    [
+        new("Enter") { duration = 0.7f },
+        new("Error1") { duration = 0.4f },
+        new("Error2") { duration = 0.6f },
+        new("Error3") { duration = 0.7f },
+        new("Granted") { duration = 0.7f },
+        new("LevelUp") { duration = 1.4f },
+        new("Nope") { duration = 0.8f },
+        new("Reject") { duration = 0.7f },
+        new("Success") { duration = 0.9f },
+        new("Whip") { duration = 0.6f },
+    ];
 
-    static readonly HashSet<Task> tasks = new();
-
-    static Task Play(string name, int duration = 0)
+    public class SoundEffect(string name) : IDisposable
     {
-        var task = Task.Run(async () =>
+        public readonly string name = name;
+
+        readonly Stream stream = typeof(Program).Assembly.GetManifestResourceStream($"rauch.Sounds.{name}.wav");
+        readonly WaveOutEvent outputDevice = new();
+
+        public float volume = .8f;
+        public float? duration;
+
+        TaskCompletionSource tcs;
+
+        public void Dispose()
         {
-            using (var stream = typeof(Program).Assembly.GetManifestResourceStream($"rauch.Sounds.{name}.wav"))
-            using (var player = new System.Media.SoundPlayer(stream))
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        void Dispose(bool disposing)
+        {
+            if (disposing)
             {
-                if (duration > 0)
-                {
-                    player.Play();
-                    await Task.Delay(duration);
-                }
-                else
-                {
-                    player.PlaySync();
-                }
+                outputDevice?.Dispose();
+                stream?.Dispose();
             }
-        });
+        }
+
+        public async Task Play()
+        {
+            while (tcs is not null)
+            {
+                await Task.Delay(50);
+            }
+
+            tcs = new();
+
+            using var stream = new MemoryStream();
+            this.stream.CopyTo(stream);
+            this.stream.Position = 0;
+            stream.Position = 0;
+
+            using var reader = new WaveFileReader(stream);
+            outputDevice.Init(reader);
+            outputDevice.Volume = volume;
+            outputDevice.PlaybackStopped += OnPlaybackStopped;
+            outputDevice.Play();
+
+            if (duration is not null)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(duration.Value));
+                outputDevice.Stop();
+            }
+
+            await tcs.Task;
+
+            tcs = null;
+
+            void OnPlaybackStopped(object sender, StoppedEventArgs e)
+            {
+                outputDevice.PlaybackStopped -= OnPlaybackStopped;
+                tcs.SetResult();
+            }
+        }
+    }
+
+    public static Task PlayError() => PlayInternal("Error1");
+    public static Task PlayWarning() => PlayInternal("Nope");
+    public static Task PlaySuccess() => PlayInternal("Success");
+    public static Task PlayHelp() => PlayInternal("Whip");
+
+    static readonly HashSet<Task> tasks = [];
+
+    static Task PlayInternal(string name)
+    {
+        var soundEffect = soundEffects.FirstOrDefault(x => x.name == name);
+        var task = soundEffect.Play();
         tasks.Add(task);
         return task;
     }

@@ -77,6 +77,7 @@ public static class CommandUtils
         logger?.Success($"Extracted {zipName}");
     }
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public static bool EnsureAdministrator(ILogger logger = null)
     {
         var identity = System.Security.Principal.WindowsIdentity.GetCurrent();

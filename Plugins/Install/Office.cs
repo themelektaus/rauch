@@ -7,6 +7,7 @@ public class Office : ICommand
     const string INSTALL_DIR = @"data\Office";
     const string FILE_NAME = "OInstall_x64.exe";
 
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
