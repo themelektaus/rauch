@@ -37,7 +37,7 @@ public sealed class PluginLoader
     /// Uses cached assemblies when source hasn't changed
     /// Supports both root-level plugins and command groups (via namespace)
     /// </summary>
-    List<ICommand> LoadPlugins(bool verboseLogging = false)
+    List<ICommand> LoadPlugins()
     {
         var commands = new List<ICommand>();
 
@@ -55,7 +55,7 @@ public sealed class PluginLoader
         {
             try
             {
-                var (pluginCommands, wasCompiled) = LoadPluginWithCache(csFile, verboseLogging);
+                var (pluginCommands, wasCompiled) = LoadPluginWithCache(csFile);
                 commands.AddRange(pluginCommands);
                 compilationInfo.Add((
                     name: Path.GetFileNameWithoutExtension(csFile),
@@ -80,7 +80,7 @@ public sealed class PluginLoader
             {
                 // Load all .cs files in the group together
                 var groupFiles = Directory.GetFiles(subdir, "*.cs", SearchOption.TopDirectoryOnly);
-                var (groupCommands, wasCompiled) = LoadPluginGroupWithCache(subdir, groupFiles, verboseLogging);
+                var (groupCommands, wasCompiled) = LoadPluginGroupWithCache(subdir, groupFiles);
                 commands.AddRange(groupCommands);
 
                 compilationInfo.Add((
@@ -95,18 +95,14 @@ public sealed class PluginLoader
             }
         }
 
-        // Show summary if verbose
-        if (verboseLogging)
-        {
-            var totalFiles = rootFiles.Length + subdirectories.Length;
-            _logger?.Info($"Found {totalFiles} file(s), loading...");
+        var totalFiles = rootFiles.Length + subdirectories.Length;
+        _logger?.Debug($"Found {totalFiles} file(s), loading...");
 
-            foreach (var info in compilationInfo)
+        foreach (var info in compilationInfo)
+        {
+            if (info.wasCompiled)
             {
-                if (info.wasCompiled || verboseLogging)
-                {
-                    _logger?.Success($"Loaded plugin: {info.name} ({info.commandCount} command(s))");
-                }
+                _logger?.Success($"Loaded plugin: {info.name} ({info.commandCount} command(s))");
             }
         }
 
@@ -117,9 +113,9 @@ public sealed class PluginLoader
     /// Loads plugins and adds them to the commands list
     /// Plugin commands are simply added - grouping is determined by namespace
     /// </summary>
-    public void LoadPluginsInto(List<ICommand> commands, bool verboseLogging = false)
+    public void LoadPluginsInto(List<ICommand> commands)
     {
-        var pluginCommands = LoadPlugins(verboseLogging);
+        var pluginCommands = LoadPlugins();
         commands.AddRange(pluginCommands);
     }
 
@@ -127,7 +123,7 @@ public sealed class PluginLoader
     /// Loads a plugin using cached DLL if available and source hasn't changed
     /// Returns tuple of (commands, wasCompiled)
     /// </summary>
-    private (List<ICommand> commands, bool wasCompiled) LoadPluginWithCache(string csFilePath, bool verboseLogging)
+    private (List<ICommand> commands, bool wasCompiled) LoadPluginWithCache(string csFilePath)
     {
         var sourceCode = File.ReadAllText(csFilePath);
         var sourceHash = ComputeHash(sourceCode);
@@ -142,10 +138,7 @@ public sealed class PluginLoader
             if (cachedHash == sourceHash)
             {
                 // Load from cache
-                if (verboseLogging)
-                {
-                    _logger?.Debug($"Loading {name} from cache");
-                }
+                _logger?.Debug($"Loading {name} from cache");
 
                 return (LoadFromAssembly<ICommand>(File.ReadAllBytes(cachedDllPath)), false);
             }
@@ -165,7 +158,7 @@ public sealed class PluginLoader
     /// Loads a plugin group (multiple .cs files) using cached DLL if available
     /// Returns tuple of (commands, wasCompiled)
     /// </summary>
-    private (List<ICommand> commands, bool wasCompiled) LoadPluginGroupWithCache(string groupDir, string[] csFiles, bool verboseLogging)
+    private (List<ICommand> commands, bool wasCompiled) LoadPluginGroupWithCache(string groupDir, string[] csFiles)
     {
         var groupName = Path.GetFileName(groupDir);
         var cachedDllPath = Path.Combine(_cacheDirectory, $"{groupName}.dll");
@@ -182,11 +175,7 @@ public sealed class PluginLoader
             if (cachedHash == sourceHash)
             {
                 // Load from cache
-                if (verboseLogging)
-                {
-                    _logger?.Debug($"Loading {groupName} from cache");
-                }
-
+                _logger?.Debug($"Loading {groupName} from cache");
                 return (LoadFromAssembly<ICommand>(File.ReadAllBytes(cachedDllPath)), false);
             }
         }

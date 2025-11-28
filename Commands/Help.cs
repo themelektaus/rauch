@@ -84,7 +84,7 @@ public class Help : ICommand
         var groups = new Dictionary<string, GroupInfo>(StringComparer.OrdinalIgnoreCase);
 
         // Group commands by namespace (auto-detect groups)
-        foreach (var command in _availableCommands.Where(c => !CommandMetadata.IsHidden(c)))
+        foreach (var command in _availableCommands)
         {
             var groupName = CommandLoader.GetGroupName(command);
 
@@ -130,7 +130,7 @@ public class Help : ICommand
 
     public IEnumerable<ICommand> EnumerateRootCommands(string[] args)
     {
-        foreach (var command in _availableCommands.Where(c => !CommandLoader.IsGroupedCommand(c) && !CommandMetadata.IsHidden(c)).OrderBy(CommandMetadata.GetName))
+        foreach (var command in _availableCommands.Where(c => !CommandLoader.IsGroupedCommand(c)).OrderBy(CommandMetadata.GetName))
         {
             var commandName = CommandMetadata.GetName(command);
             if (Filter(args, commandName))

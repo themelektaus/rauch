@@ -79,15 +79,6 @@ public static class CommandMetadata
     }
 
     /// <summary>
-    /// Checks if a command is hidden
-    /// </summary>
-    public static bool IsHidden(ICommand command)
-    {
-        var attr = GetAttribute(command);
-        return attr?.Hidden ?? false;
-    }
-
-    /// <summary>
     /// Checks if a command name matches
     /// </summary>
     public static bool MatchesName(ICommand command, string name)

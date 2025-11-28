@@ -12,7 +12,7 @@ public sealed class CommandLoader
     /// Finds and instantiates all ICommand implementations in the current assembly
     /// and loads plugin commands from the plugins directory
     /// </summary>
-    public static List<ICommand> LoadCommands(ILogger logger = null, bool verbosePluginLogging = false)
+    public static List<ICommand> LoadCommands(ILogger logger = null)
     {
         var commands = new List<ICommand>();
         var assembly = Assembly.GetExecutingAssembly();
@@ -49,7 +49,7 @@ public sealed class CommandLoader
         // Load plugin commands from plugins directory
         var pluginDirectory = Path.Combine(AppContext.BaseDirectory, "plugins");
         var pluginLoader = new PluginLoader(pluginDirectory, logger);
-        pluginLoader.LoadPluginsInto(commands, verbosePluginLogging);
+        pluginLoader.LoadPluginsInto(commands);
 
         // Add Help (needs the list of all commands)
         var help = new Help(commands);

@@ -19,24 +19,13 @@ var logger = new ConsoleLogger(enableColors: true);
 services.RegisterSingleton<ILogger>(logger);
 
 // Load all available commands via reflection (including plugins)
-// Show verbose plugin logging only when displaying help
-var commands = CommandLoader.LoadCommands(logger, verbosePluginLogging: args.Length == 0 || args[0] == "update");
+var commands = CommandLoader.LoadCommands(logger);
 
 // Register Help command
 var helpCommand = CommandLoader.FindCommand<Help>(commands, "help");
 if (helpCommand is not null)
 {
     services.RegisterSingleton(helpCommand);
-}
-
-if (args.Length == 0)
-{
-    Help.WriteTitleLine(logger);
-    if (helpCommand is not null)
-    {
-        Help.WriteHelpLine(logger, helpCommand);
-    }
-    goto Exit;
 }
 
 if (args.Length >= 1)

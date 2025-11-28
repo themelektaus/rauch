@@ -22,11 +22,6 @@ public sealed class CommandAttribute : Attribute
     /// </summary>
     public string Parameters { get; set; }
 
-    /// <summary>
-    /// Hides the command in help output (for debug/internal commands)
-    /// </summary>
-    public bool Hidden { get; set; }
-
     public CommandAttribute(string name, string description = "")
     {
         Name = name;

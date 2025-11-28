@@ -218,7 +218,7 @@ The `SoundPlayer` class provides audio feedback using NAudio (fire-and-forget, n
 
 Sounds are configured via companion INI files (`*.wav.ini`) with Volume and Duration properties. Built-in debouncing prevents audio overlap when called rapidly.
 
-**Disabling Sounds**: Run `rauch sounds` to toggle sound effects on/off, or create a file named `no-sounds` in the application directory.
+**Disabling Sounds**: Run `rauch config sound` to toggle sound effects on/off. Configuration is stored in `config.ini`.
 
 ## Project Structure
 
@@ -227,7 +227,7 @@ rauch/
 ├── Commands/              # Core commands (Rauch.Commands namespace)
 │   ├── Help.cs           # Help command
 │   ├── Update.cs         # Self-update command
-│   ├── Debug.cs          # Debug command (hidden)
+│   ├── Debug.cs          # Debug command
 │   ├── Run/              # Run command group (Rauch.Commands.Run)
 │   │   ├── Ping.cs       # Ping subcommand
 │   │   └── Ping.ps1      # Embedded PowerShell script
@@ -271,6 +271,7 @@ rauch/
 │   ├── CommandUtils.cs   # Utility methods for plugins
 │   ├── ConsoleLogger.cs  # Logger with interactive UI
 │   ├── SoundPlayer.cs    # Audio feedback via embedded WAV sounds
+│   ├── ConfigIni.cs      # Thread-safe INI configuration management
 │   └── Attributes/       # Validation and metadata attributes
 ├── Sounds/                # Sound effect files (embedded as resources)
 ├── LiveCode/              # Runtime C# compilation

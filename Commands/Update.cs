@@ -1,12 +1,13 @@
+#if !DEBUG
 namespace Rauch.Commands;
 
 [Command("update", "Update rauch to the latest version from GitHub")]
 public class Update : ICommand
 {
-    private const string GitHubRawUrl = "https://raw.githubusercontent.com/themelektaus/rauch/main/Build/Windows/rauch.exe";
-    private const string GitHubPluginsZipUrl = "https://raw.githubusercontent.com/themelektaus/rauch/main/Build/Plugins.zip";
-    private const string TempFileName = "rauch.exe.new";
-    private const string PluginsZipFileName = "Plugins.zip";
+    const string GitHubRawUrl = "https://raw.githubusercontent.com/themelektaus/rauch/main/Build/Windows/rauch.exe";
+    const string GitHubPluginsZipUrl = "https://raw.githubusercontent.com/themelektaus/rauch/main/Build/Plugins.zip";
+    const string TempFileName = "rauch.exe.new";
+    const string PluginsZipFileName = "Plugins.zip";
 
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
@@ -156,3 +157,4 @@ exit
         }
     }
 }
+#endif

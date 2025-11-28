@@ -87,7 +87,6 @@ public class Sum : ICommand
 - `Name` (required): Command name
 - `Description` (optional): Command description (default: empty string)
 - `Parameters`: Optional usage string (auto-generated if omitted)
-- `Hidden`: Hides command from help output (still executable)
 
 ### Validation System
 
@@ -137,10 +136,20 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 - `Choice()`: Interactive menu selection with arrow key navigation
 - Access logger via DI: `services.GetService<ILogger>()`
 
-**Verbose Logging Control**:
-- Plugin loading messages only shown when displaying help or during compilation
-- Silent operation for normal command execution
-- Controlled via `verbosePluginLogging` parameter in `CommandLoader.LoadCommands()`
+### Configuration System
+
+**ConfigIni** (`Core/ConfigIni.cs`):
+- Thread-safe INI file configuration using `config.ini`
+- Uses `SemaphoreSlim` for concurrent access protection
+- `Read<T>(getter, logger)`: Read configuration values
+- `Edit(action, logger)`: Modify configuration values
+- Auto-creates `config.ini` if it doesn't exist
+
+**Configuration File Format** (`config.ini`):
+```ini
+[Sound]
+Enabled=1
+```
 
 ### Sound System
 
@@ -182,9 +191,9 @@ SoundPlayer.Play("Error");    // Play error sound (fire-and-forget)
 ```
 
 **Disabling Sounds**:
-- Run `rauch sounds` command to toggle sound effects on/off
-- Alternatively, create/delete a file named `no-sounds` in the application directory
-- Sounds are conditionally loaded only if the `no-sounds` file does not exist
+- Run `rauch config sound` command to toggle sound effects on/off
+- Configuration stored in `config.ini` under `[Sound]` section with `Enabled=1` or `Enabled=0`
+- Sounds are conditionally loaded only if `[Sound] Enabled=1` in config
 
 **Program Exit**:
 - `Program.cs` calls `await SoundPlayer.WaitAndDispose()` before exit to ensure all sounds complete and resources are cleaned up
@@ -432,15 +441,6 @@ This command is automatically available as `rauch run ping`.
 4. Plugin compiles automatically on next run
 5. See **Plugin System** section for details
 
-### Hidden/Debug Commands
-
-```csharp
-[Command("debug", "Internal debug command", Hidden = true)]
-public class DebugCommand : ICommand { }
-```
-
-Hidden commands execute normally but don't appear in help output.
-
 ## Key Files
 
 **Application Entry**:
@@ -454,6 +454,7 @@ Hidden commands execute normally but don't appear in help output.
 - `Core/ServiceContainer.cs`: Lightweight DI container
 - `Core/ConsoleLogger.cs`: Console logger implementation with color support and interactive UI
 - `Core/SoundPlayer.cs`: Static class for playing embedded WAV sound effects asynchronously
+- `Core/ConfigIni.cs`: Thread-safe INI configuration file management
 
 **LiveCode Compiler**:
 - `LiveCode/CSharpCompiler.cs`: Roslyn-based C# 13 compiler for plugins
@@ -509,7 +510,7 @@ Hidden commands execute normally but don't appear in help output.
 9. **Runtime plugin compilation**: Roslyn-based C# 13 compilation for plugins
 10. **Aggressive caching**: SHA256-based cache invalidation for fast startup
 11. **Auto-injection**: Minimal plugin boilerplate via automatic code injection
-12. **Verbose logging control**: Silent by default, verbose only when needed (help/compilation)
+12. **INI-based configuration**: Application settings stored in `config.ini` via thread-safe `ConfigIni` class
 13. **Static utility methods**: Common plugin operations (download, unzip, process start) in `CommandUtils` with `using static`
 14. **Interactive console UI**: Choice menus and question prompts for user interaction
 15. **Plugin PowerShell support**: Plugins can have associated .ps1 scripts in their directories
@@ -520,7 +521,7 @@ Hidden commands execute normally but don't appear in help output.
 **NuGet Packages**:
 - `Microsoft.CodeAnalysis.CSharp` (v4.12.0): Roslyn compiler for plugin system
 - `NAudio` (v2.2.1): Cross-platform audio playback for sound effects
-- `ini-parser-netstandard` (v2.5.3): INI file parsing for sound configuration
+- `ini-parser-netstandard` (v2.5.3): INI file parsing for sound and application configuration
 
 **Framework**:
 - .NET 10.0 (some plugins require Windows for Registry/PowerShell operations)
