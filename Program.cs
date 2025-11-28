@@ -5,7 +5,8 @@ Console.CursorVisible = true;
 Console.ForegroundColor = ConsoleColor.Gray;
 Console.BackgroundColor = ConsoleColor.Black;
 
-if (!File.Exists("no-sounds"))
+var soundEnabled = ConfigIni.Read(data => data["Sound"]["Enabled"]);
+if (string.IsNullOrEmpty(soundEnabled) || soundEnabled == "1")
 {
     SoundPlayer.LoadSounds();
 }
@@ -60,7 +61,44 @@ if (args.Length >= 2)
 
 if (helpCommand is not null)
 {
-    await helpCommand.ExecuteAsync(args, services);
+    var commandLines = new List<string[]>();
+    foreach (var command in helpCommand.EnumerateRootCommands(args))
+    {
+        commandLines.Add([CommandMetadata.GetName(command), null]);
+    }
+    foreach (var info in helpCommand.GetGroups(args))
+    {
+        foreach (var command in info.Value.commands)
+        {
+            commandLines.Add([info.Value.name, command.Value.name]);
+        }
+    }
+
+    if (commandLines.Count == 1)
+    {
+        logger.Write(" >_ ", newLine: false, color: ConsoleColor.DarkCyan);
+        logger.Write("rauch ", newLine: false, color: ConsoleColor.Cyan);
+        logger.Write(string.Join(" ", commandLines[0]), newLine: false, color: ConsoleColor.Yellow);
+        logger.Write(" ... ", newLine: false);
+
+        if (logger.Choice("  ", ["continue", "cancel"]) == 0)
+        {
+            var command = CommandLoader.FindCommand(commands, commandLines[0][0], commandLines[0][1]);
+            if (command is not null)
+            {
+                await ValidateAndExecuteAsync(command, [.. args.Skip(1)]);
+                goto Exit;
+            }
+        }
+        else
+        {
+            logger.Warning("Canceled.");
+        }
+    }
+    else
+    {
+        await helpCommand.ExecuteAsync(args, services);
+    }
 }
 
 Exit:
@@ -68,13 +106,13 @@ await SoundPlayer.WaitAndDispose();
 
 async Task ValidateAndExecuteAsync(ICommand command, string[] args)
 {
-    var validationResult = CommandMetadata.ValidateArguments(command, args);
-    if (validationResult.IsValid)
+    var (isValid, errorMessage) = CommandMetadata.ValidateArguments(command, args);
+    if (isValid)
     {
         await command.ExecuteAsync(args, services);
         return;
     }
 
-    logger.Error($"Validation error: {validationResult.ErrorMessage}");
+    logger.Error($"Validation error: {errorMessage}");
     logger.Info($"Usage: {CommandMetadata.GetUsage(command)}");
 }

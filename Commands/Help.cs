@@ -26,83 +26,11 @@ public class Help : ICommand
 
     public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
-        var searchTerms = args.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
-
-        bool Filter(string term)
-        {
-            if (searchTerms.Count > 0)
-            {
-                if (!searchTerms.Any(x => term.Contains(x, StringComparison.OrdinalIgnoreCase)))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        bool FilterExact(string term)
-        {
-            if (searchTerms.Count > 0)
-            {
-                if (!searchTerms.All(x => term.Equals(x, StringComparison.OrdinalIgnoreCase)))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        var groups = new Dictionary<string, GroupInfo>(StringComparer.OrdinalIgnoreCase);
-
-        // Group commands by namespace (auto-detect groups)
-        foreach (var command in _availableCommands.Where(c => !CommandMetadata.IsHidden(c)))
-        {
-            var groupName = CommandLoader.GetGroupName(command);
-
-            // Skip top-level commands for now (will be added at the end)
-            if (groupName == null)
-            {
-                continue;
-            }
-
-            if (!groups.TryGetValue(groupName, out var groupInfo))
-            {
-                groupInfo = new()
-                {
-                    name = groupName,
-                    forceVisible = Filter(groupName),
-                };
-
-                groups.Add(groupName, groupInfo);
-            }
-
-            var commandName = CommandMetadata.GetName(command);
-            var exactMatch = FilterExact(groupName);
-
-            if (!exactMatch && !Filter(commandName))
-            {
-                continue;
-            }
-
-            // Avoid duplicate command names in same group
-            if (!groupInfo.commands.ContainsKey(commandName))
-            {
-                groupInfo.commands.Add(commandName, new()
-                {
-                    name = commandName,
-                    description = CommandMetadata.GetDescription(command),
-                    type = CommandLoader.IsPlugin(command) ? "Plugin" : "Core"
-                });
-            }
-        }
-
         var logger = services.GetService<ILogger>();
 
         WriteTitleLine(logger);
 
-        foreach (var group in groups.Values.OrderBy(x => x.name))
+        foreach (var group in GetGroups(args).Values.OrderBy(x => x.name))
         {
             if (!group.forceVisible && group.commands.Count == 0)
             {
@@ -124,12 +52,9 @@ public class Help : ICommand
         }
 
         // Show top-level commands (not in any group)
-        foreach (var command in _availableCommands.Where(c => !CommandLoader.IsGroupedCommand(c) && !CommandMetadata.IsHidden(c)).OrderBy(CommandMetadata.GetName))
+        foreach (var command in EnumerateRootCommands(args))
         {
-            if (Filter(CommandMetadata.GetName(command)))
-            {
-                WriteHelpLine(logger, command);
-            }
+            WriteHelpLine(logger, command);
         }
 
         return Task.CompletedTask;
@@ -152,5 +77,101 @@ public class Help : ICommand
         logger?.Write($"  {usage[6..],-15}", newLine: false, color: ConsoleColor.Yellow);
         logger?.Write(desc);
         logger?.Write();
+    }
+
+    public Dictionary<string, GroupInfo> GetGroups(string[] args)
+    {
+        var groups = new Dictionary<string, GroupInfo>(StringComparer.OrdinalIgnoreCase);
+
+        // Group commands by namespace (auto-detect groups)
+        foreach (var command in _availableCommands.Where(c => !CommandMetadata.IsHidden(c)))
+        {
+            var groupName = CommandLoader.GetGroupName(command);
+
+            // Skip top-level commands for now (will be added at the end)
+            if (groupName == null)
+            {
+                continue;
+            }
+
+            if (!groups.TryGetValue(groupName, out var groupInfo))
+            {
+                groupInfo = new()
+                {
+                    name = groupName,
+                    forceVisible = Filter(args, groupName),
+                };
+
+                groups.Add(groupName, groupInfo);
+            }
+
+            var commandName = CommandMetadata.GetName(command);
+            var exactMatch = FilterExact(args, groupName);
+
+            if (!exactMatch && !Filter(args, commandName))
+            {
+                continue;
+            }
+
+            // Avoid duplicate command names in same group
+            if (!groupInfo.commands.ContainsKey(commandName))
+            {
+                groupInfo.commands.Add(commandName, new()
+                {
+                    name = commandName,
+                    description = CommandMetadata.GetDescription(command),
+                    type = CommandLoader.IsPlugin(command) ? "Plugin" : "Core"
+                });
+            }
+        }
+
+        return groups;
+    }
+
+    public IEnumerable<ICommand> EnumerateRootCommands(string[] args)
+    {
+        foreach (var command in _availableCommands.Where(c => !CommandLoader.IsGroupedCommand(c) && !CommandMetadata.IsHidden(c)).OrderBy(CommandMetadata.GetName))
+        {
+            var commandName = CommandMetadata.GetName(command);
+            if (Filter(args, commandName))
+            {
+                yield return command;
+            }
+        }
+    }
+
+    static List<string> GetSearchTerms(string[] args)
+    {
+        return [.. args.Where(x => !string.IsNullOrWhiteSpace(x))];
+    }
+
+    static bool Filter(string[] args, string term)
+    {
+        var searchTerms = GetSearchTerms(args);
+
+        if (searchTerms.Count > 0)
+        {
+            if (!searchTerms.Any(x => term.Contains(x, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    static bool FilterExact(string[] args, string term)
+    {
+        var searchTerms = GetSearchTerms(args);
+
+        if (searchTerms.Count > 0)
+        {
+            if (!searchTerms.All(x => term.Equals(x, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

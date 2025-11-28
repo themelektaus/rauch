@@ -99,14 +99,14 @@ public static class CommandMetadata
     /// <summary>
     /// Validates arguments against all ValidationAttributes
     /// </summary>
-    public static (bool IsValid, string ErrorMessage) ValidateArguments(ICommand command, string[] args)
+    public static (bool isValid, string errorMessage) ValidateArguments(ICommand command, string[] args)
     {
         var validations = GetValidationAttributes(command);
 
         foreach (var validation in validations)
         {
             var result = validation.Validate(args);
-            if (!result.IsValid)
+            if (!result.isValid)
             {
                 return result;
             }

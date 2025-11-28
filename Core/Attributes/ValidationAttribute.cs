@@ -10,8 +10,8 @@ public abstract class ValidationAttribute : Attribute
     /// Validates the provided arguments
     /// </summary>
     /// <param name="args">The arguments to validate</param>
-    /// <returns>Tuple with (IsValid, ErrorMessage)</returns>
-    public abstract (bool IsValid, string ErrorMessage) Validate(string[] args);
+    /// <returns>Tuple with (isValid, errorMessage)</returns>
+    public abstract (bool isValid, string errorMessage) Validate(string[] args);
 }
 
 /// <summary>
@@ -26,7 +26,7 @@ public sealed class MinArgumentsAttribute : ValidationAttribute
         MinCount = minCount;
     }
 
-    public override (bool IsValid, string ErrorMessage) Validate(string[] args)
+    public override (bool isValid, string errorMessage) Validate(string[] args)
     {
         if (args.Length < MinCount)
         {
@@ -48,7 +48,7 @@ public sealed class MaxArgumentsAttribute : ValidationAttribute
         MaxCount = maxCount;
     }
 
-    public override (bool IsValid, string ErrorMessage) Validate(string[] args)
+    public override (bool isValid, string errorMessage) Validate(string[] args)
     {
         if (args.Length > MaxCount)
         {
@@ -70,7 +70,7 @@ public sealed class ExactArgumentsAttribute : ValidationAttribute
         Count = count;
     }
 
-    public override (bool IsValid, string ErrorMessage) Validate(string[] args)
+    public override (bool isValid, string errorMessage) Validate(string[] args)
     {
         if (args.Length != Count)
         {
@@ -85,7 +85,7 @@ public sealed class ExactArgumentsAttribute : ValidationAttribute
 /// </summary>
 public sealed class NumericArgumentsAttribute : ValidationAttribute
 {
-    public override (bool IsValid, string ErrorMessage) Validate(string[] args)
+    public override (bool isValid, string errorMessage) Validate(string[] args)
     {
         foreach (var arg in args)
         {
