@@ -8,7 +8,7 @@ public class Sound : ICommand
         var logger = services.GetService<ILogger>();
 
         var soundEnabled = ConfigIni.Read(data => data["Sound"]["Enabled"], logger);
-        var choiceDefaultIndex = (string.IsNullOrEmpty(soundEnabled) || soundEnabled == "1") ? 0 : 1;
+        var choiceDefaultIndex = soundEnabled == "1" ? 0 : 1;
 
         if (logger?.Choice($"Sounds are currently {(choiceDefaultIndex == 0 ? "enabled" : "disabled")}. Change to", ["enabled", "disabled"], choiceDefaultIndex) == 0)
         {

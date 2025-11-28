@@ -6,7 +6,7 @@ Console.ForegroundColor = ConsoleColor.Gray;
 Console.BackgroundColor = ConsoleColor.Black;
 
 var soundEnabled = ConfigIni.Read(data => data["Sound"]["Enabled"]);
-if (string.IsNullOrEmpty(soundEnabled) || soundEnabled == "1")
+if (soundEnabled == "1")
 {
     SoundPlayer.LoadSounds();
 }
