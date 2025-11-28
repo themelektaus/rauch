@@ -190,7 +190,7 @@ SoundPlayer.Play("Success");  // Play success sound (fire-and-forget)
 SoundPlayer.Play("Error");    // Play error sound (fire-and-forget)
 ```
 
-**Disabling Sounds**:
+**Enabling Sounds**:
 - Run `rauch config sound` command to toggle sound effects on/off
 - Configuration stored in `config.ini` under `[Sound]` section with `Enabled=1` or `Enabled=0`
 - Sounds are conditionally loaded only if `[Sound] Enabled=1` in config

@@ -218,7 +218,7 @@ The `SoundPlayer` class provides audio feedback using NAudio (fire-and-forget, n
 
 Sounds are configured via companion INI files (`*.wav.ini`) with Volume and Duration properties. Built-in debouncing prevents audio overlap when called rapidly.
 
-**Disabling Sounds**: Run `rauch config sound` to toggle sound effects on/off. Configuration is stored in `config.ini`.
+**Enabling Sounds**: Run `rauch config sound` to toggle sound effects on/off. Configuration is stored in `config.ini`.
 
 ## Project Structure
 
