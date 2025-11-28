@@ -89,7 +89,7 @@ public sealed class ConsoleLogger : ILogger
 
         if (exitCode == 0)
         {
-            Info(message);
+            Debug(message);
         }
         else
         {
