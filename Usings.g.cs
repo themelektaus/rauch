@@ -18,6 +18,7 @@ internal static class Usings
         "System.Text",
         "System.Threading",
         "System.Threading.Tasks",
-        "static Rauch.Core.CommandUtils"
+        "static Rauch.Core.CommandUtils",
+        "OS = System.Runtime.Versioning.SupportedOSPlatformAttribute"
     };
 }

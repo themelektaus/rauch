@@ -3,7 +3,7 @@ namespace Rauch.Plugins.Install;
 [Command("vcredist22")]
 public class VcRedist22 : ICommand
 {
-    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    [OS("windows")]
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();

@@ -315,6 +315,7 @@ using Rauch.Commands;
 using Rauch.Core;
 using Rauch.Core.Attributes;
 using static Rauch.Core.CommandUtils;  // Provides SetWorkingDirectory, DownloadFile, Unzip, StartProcess, etc.
+using OS = System.Runtime.Versioning.SupportedOSPlatformAttribute;  // Short alias for platform targeting
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -565,7 +566,7 @@ This command is automatically available as `rauch run ping`.
     - `SoundPlayer.Play("Error")`: For error conditions (also called automatically by `logger.Error()`)
     - `SoundPlayer.Play("Warning")`: For warnings (also called automatically by `logger.Warning()`)
     - `SoundPlayer.Play("Help")`: For help/quick actions
-12. **Platform Attributes**: Use `[System.Runtime.Versioning.SupportedOSPlatform("windows")]` on methods that use Windows-specific APIs (Registry, WindowsIdentity, etc.)
+12. **Platform Attributes**: Use `[OS("windows")]` on methods that use Windows-specific APIs (Registry, WindowsIdentity, etc.). The `OS` alias is available via `Usings.cs` and auto-injected for plugins.
 
 ## Plugin Examples
 
