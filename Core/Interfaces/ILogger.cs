@@ -13,17 +13,17 @@ public interface ILogger
     /// <summary>
     /// Logs a success message
     /// </summary>
-    void Success(string message, bool newLine = true);
+    void Success(string message, bool newLine = true, bool preventSound = false);
 
     /// <summary>
     /// Logs a warning
     /// </summary>
-    void Warning(string message, bool newLine = true, bool noSound = false);
+    void Warning(string message, bool newLine = true, bool preventSound = false);
 
     /// <summary>
     /// Logs an error
     /// </summary>
-    void Error(string message, bool newLine = true);
+    void Error(string message, bool newLine = true, bool preventSound = false);
 
     /// <summary>
     /// Logs a debug message

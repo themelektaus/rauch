@@ -91,7 +91,7 @@ public static class CommandUtils
         }
 
         logger?.Error("Not running as administrator");
-        logger?.Warning("Please run rauch as administrator to continue", noSound: true);
+        logger?.Warning("Please run rauch as administrator to continue", preventSound: true);
         return false;
     }
 

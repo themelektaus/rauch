@@ -126,14 +126,15 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 **ILogger Interface** (`Core/Interfaces/ILogger.cs`):
 - Color-coded console output with different severity levels
 - `Info()`: Cyan - informational messages
-- `Success()`: Green - success messages
-- `Warning()`: Yellow - warnings
-- `Error()`: Red - error messages
+- `Success(message, newLine, preventSound)`: Green - success messages
+- `Warning(message, newLine, preventSound)`: Yellow - warnings
+- `Error(message, newLine, preventSound)`: Red - error messages
 - `Debug()`: Dark gray - debug messages (only in DEBUG builds)
 - `Write()`: Generic output with optional color
 - `Exit()`: Display exit code with appropriate color
 - `Question()`: Interactive text input with validation and default values
 - `Choice()`: Interactive menu selection with arrow key navigation
+- The `preventSound` parameter (default: `false`) allows suppressing automatic sound playback
 - Access logger via DI: `services.GetService<ILogger>()`
 
 ### Configuration System
@@ -179,9 +180,9 @@ Duration=0.5
 - `Help`: Help/quick action sound (used by help command)
 
 **Automatic Sound Integration**:
-- `logger.Success()` automatically plays `Success` sound
-- `logger.Error()` automatically plays `Error` sound
-- `logger.Warning()` automatically plays `Warning` sound
+- `logger.Success()` automatically plays `Success` sound (use `preventSound: true` to suppress)
+- `logger.Error()` automatically plays `Error` sound (use `preventSound: true` to suppress)
+- `logger.Warning()` automatically plays `Warning` sound (use `preventSound: true` to suppress)
 - Help command title plays `Help` sound
 
 **Usage in Commands**:

@@ -17,24 +17,30 @@ public sealed class ConsoleLogger : ILogger
         Write(message, newLine, ConsoleColor.Cyan);
     }
 
-    public void Success(string message, bool newLine = true)
+    public void Success(string message, bool newLine = true, bool preventSound = false)
     {
-        SoundPlayer.Play("Success");
+        if (!preventSound)
+        {
+            SoundPlayer.Play("Success");
+        }
         Write(message, newLine, ConsoleColor.Green);
     }
 
-    public void Warning(string message, bool newLine = true, bool noSound = false)
+    public void Warning(string message, bool newLine = true, bool preventSound = false)
     {
-        if (!noSound)
+        if (!preventSound)
         {
             SoundPlayer.Play("Warning");
         }
         Write(message, newLine, ConsoleColor.Yellow);
     }
 
-    public void Error(string message, bool newLine = true)
+    public void Error(string message, bool newLine = true, bool preventSound = false)
     {
-        SoundPlayer.Play("Error");
+        if (!preventSound)
+        {
+            SoundPlayer.Play("Error");
+        }
         Write(message, newLine, ConsoleColor.Red);
     }
 

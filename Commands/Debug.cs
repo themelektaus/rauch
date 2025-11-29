@@ -7,7 +7,7 @@ public class Debug : ICommand
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
         var logger = services.GetService<ILogger>();
-        
+
         if (args.Length == 0)
         {
             logger?.Debug("rauch debug publish");
