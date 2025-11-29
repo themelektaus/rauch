@@ -8,6 +8,8 @@ public class Ping : ICommand
     {
         var logger = services.GetService<ILogger>();
 
-        await ExecutePowershellFile<Ping>(string.Join(' ', args), logger: logger, ct: ct);
+        var exitCode = await ExecutePowershellFile<Ping>(string.Join(' ', args), logger: logger, ct: ct);
+        
+        logger?.Exit(exitCode);
     }
 }

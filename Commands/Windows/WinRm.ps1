@@ -1,17 +1,4 @@
-﻿$currentIdentity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-$administratorRole = [Security.Principal.WindowsBuiltInRole]::Administrator
-
-if ($currentIdentity.IsInRole($administratorRole))
-{
-    Write-Host "Success: Running as administrator" -ForegroundColor green
-}
-else
-{
-    Write-Host "Error: Not running as administrator" -ForegroundColor red
-    Exit
-}
-
-# PsExec
+﻿# PsExec
 reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\system" /v LocalAccountTokenFilterPolicy /t REG_DWORD /d 1 /f
 reg add "HKLM\System\CurrentControlSet\Control\Terminal Server" /v AllowRemoteRPC /t REG_DWORD /d 1 /f
 reg add "HKLM\System\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
