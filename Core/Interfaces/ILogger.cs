@@ -18,7 +18,7 @@ public interface ILogger
     /// <summary>
     /// Logs a warning
     /// </summary>
-    void Warning(string message, bool newLine = true);
+    void Warning(string message, bool newLine = true, bool noSound = false);
 
     /// <summary>
     /// Logs an error

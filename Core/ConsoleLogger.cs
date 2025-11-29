@@ -23,9 +23,12 @@ public sealed class ConsoleLogger : ILogger
         Write(message, newLine, ConsoleColor.Green);
     }
 
-    public void Warning(string message, bool newLine = true)
+    public void Warning(string message, bool newLine = true, bool noSound = false)
     {
-        SoundPlayer.Play("Warning");
+        if (!noSound)
+        {
+            SoundPlayer.Play("Warning");
+        }
         Write(message, newLine, ConsoleColor.Yellow);
     }
 
