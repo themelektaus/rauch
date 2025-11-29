@@ -33,7 +33,7 @@ if (args.Length >= 1)
     var command = CommandLoader.FindCommand(commands, args[0]);
     if (command is not null)
     {
-        await ValidateAndExecuteAsync(command, args.Skip(1).ToArray());
+        await ValidateAndExecuteAsync(command, [.. args.Skip(1)]);
         goto Exit;
     }
 }
@@ -43,36 +43,43 @@ if (args.Length >= 2)
     var command = CommandLoader.FindCommand(commands, args[0], args[1]);
     if (command is not null)
     {
-        await ValidateAndExecuteAsync(command, args.Skip(2).ToArray());
+        await ValidateAndExecuteAsync(command, [.. args.Skip(2)]);
         goto Exit;
     }
 }
 
 if (helpCommand is not null)
 {
-    var commandLines = new List<string[]>();
-    foreach (var command in helpCommand.EnumerateRootCommands(args))
-    {
-        commandLines.Add([CommandMetadata.GetName(command), null]);
-    }
-    foreach (var info in helpCommand.GetGroups(args))
-    {
-        foreach (var command in info.Value.commands)
-        {
-            commandLines.Add([info.Value.name, command.Value.name]);
-        }
-    }
+    var commandLines = helpCommand.GetCommandLines(args);
 
-    if (commandLines.Count == 1)
+    if (commandLines.Count == 1 && commandLines.First().Value.Count == 1)
     {
+        var commandLine = commandLines.First();
+
+        string[] commandLineArgs;
+
+        if (commandLine.Key is Help.GroupInfo group)
+        {
+            commandLineArgs = [group.name, commandLine.Value.First().name];
+        }
+        else if (commandLine.Key is ICommand command)
+        {
+            commandLineArgs = [CommandMetadata.GetName(command), ""];
+        }
+        else
+        {
+            logger.Error("Unexpected command line key type.");
+            goto Exit;
+        }
+
         logger.Write(" >_ ", newLine: false, color: ConsoleColor.DarkCyan);
         logger.Write("rauch ", newLine: false, color: ConsoleColor.Cyan);
-        logger.Write(string.Join(" ", commandLines[0]), newLine: false, color: ConsoleColor.Yellow);
+        logger.Write(string.Join(" ", commandLineArgs), newLine: false, color: ConsoleColor.Yellow);
         logger.Write(" ... ", newLine: false);
 
         if (logger.Choice("  ", ["continue", "cancel"]) == 0)
         {
-            var command = CommandLoader.FindCommand(commands, commandLines[0][0], commandLines[0][1]);
+            var command = CommandLoader.FindCommand(commands, commandLineArgs[0], commandLineArgs[1]);
             if (command is not null)
             {
                 await ValidateAndExecuteAsync(command, [.. args.Skip(1)]);

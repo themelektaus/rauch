@@ -13,7 +13,7 @@ public class Help : ICommand
     public class GroupInfo
     {
         public string name;
-        public bool forceVisible;
+        public bool match;
         public Dictionary<string, CommandInfo> commands = [];
     }
 
@@ -22,6 +22,7 @@ public class Help : ICommand
         public string name;
         public string description;
         public string type;
+        public bool match;
     }
 
     public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
@@ -30,31 +31,42 @@ public class Help : ICommand
 
         WriteTitleLine(logger);
 
-        foreach (var group in GetGroups(args).Values.OrderBy(x => x.name))
+        var commandLines = GetCommandLines(args);
+
+        if (commandLines.Count == 0)
         {
-            if (!group.forceVisible && group.commands.Count == 0)
+            logger?.Warning("No commands found matching the specified search terms.");
+            return Task.CompletedTask;
+        }
+
+        foreach (var (key, value) in commandLines)
+        {
+            if (key is GroupInfo group)
             {
+                logger?.Write($"  {group.name,-15}", newLine: false, color: ConsoleColor.Yellow);
+                logger?.Write();
+
+                foreach (var command in value)
+                {
+                    logger?.Write($"    └─ ", newLine: false);
+                    logger?.Write($"{command.name,-13} ", newLine: false, color: ConsoleColor.DarkYellow);
+                    logger?.Write($"{command.type,-10}", newLine: false, color: ConsoleColor.DarkGray);
+                    logger?.Write(command.description, newLine: false);
+                    logger?.Write();
+                }
+
+                logger?.Write();
+
                 continue;
             }
 
-            logger?.Write($"  {group.name,-15}", newLine: false, color: ConsoleColor.Yellow);
-            logger?.Write();
-
-            foreach (var command in group.commands.Values.OrderBy(x => x.name))
+            if (key is ICommand rootCommand)
             {
-                logger?.Write($"    └─ ", newLine: false);
-                logger?.Write($"{command.name,-13} ", newLine: false, color: ConsoleColor.DarkYellow);
-                logger?.Write($"{command.type,-10}", newLine: false, color: ConsoleColor.DarkGray);
-                logger?.Write(command.description, newLine: false);
-                logger?.Write();
+                WriteHelpLine(logger, rootCommand);
+                continue;
             }
-            logger?.Write();
-        }
 
-        // Show top-level commands (not in any group)
-        foreach (var command in EnumerateRootCommands(args))
-        {
-            WriteHelpLine(logger, command);
+            logger?.Warning("Unexpected key type in command lines.");
         }
 
         return Task.CompletedTask;
@@ -99,28 +111,22 @@ public class Help : ICommand
                 groupInfo = new()
                 {
                     name = groupName,
-                    forceVisible = Filter(args, groupName),
+                    match = Filter(args, groupName, matchAll: false),
                 };
 
                 groups.Add(groupName, groupInfo);
             }
 
             var commandName = CommandMetadata.GetName(command);
-            var exactMatch = FilterExact(args, groupName);
 
-            if (!exactMatch && !Filter(args, commandName))
-            {
-                continue;
-            }
-
-            // Avoid duplicate command names in same group
             if (!groupInfo.commands.ContainsKey(commandName))
             {
                 groupInfo.commands.Add(commandName, new()
                 {
                     name = commandName,
                     description = CommandMetadata.GetDescription(command),
-                    type = CommandLoader.IsPlugin(command) ? "Plugin" : "Core"
+                    type = CommandLoader.IsPlugin(command) ? "Plugin" : "Core",
+                    match = Filter(args, commandName, matchAll: !groupInfo.match)
                 });
             }
         }
@@ -133,11 +139,47 @@ public class Help : ICommand
         foreach (var command in _availableCommands.Where(c => !CommandLoader.IsGroupedCommand(c)).OrderBy(CommandMetadata.GetName))
         {
             var commandName = CommandMetadata.GetName(command);
-            if (Filter(args, commandName))
+            if (Filter(args, commandName, matchAll: true))
             {
                 yield return command;
             }
         }
+    }
+
+    public Dictionary<object, List<CommandInfo>> GetCommandLines(string[] args)
+    {
+        var commandLines = new Dictionary<object, List<CommandInfo>>();
+
+        var groups = GetGroups(args);
+        var hasMatchingCommand = groups.Any(x => x.Value.commands.Values.Any(c => c.match));
+
+        foreach (var group in groups.Values.OrderBy(x => x.name))
+        {
+            if (!group.match && !group.commands.Values.Any(x => x.match))
+            {
+                continue;
+            }
+
+            var commands = group.commands.Values.Where(x => !hasMatchingCommand || x.match).ToList();
+            if (commands.Count == 0)
+            {
+                continue;
+            }
+
+            commandLines[group] = [];
+
+            foreach (var command in commands.OrderBy(x => x.name))
+            {
+                commandLines[group].Add(command);
+            }
+        }
+
+        foreach (var command in EnumerateRootCommands(args))
+        {
+            commandLines.Add(command, null);
+        }
+
+        return commandLines;
     }
 
     static List<string> GetSearchTerms(string[] args)
@@ -145,30 +187,25 @@ public class Help : ICommand
         return [.. args.Where(x => !string.IsNullOrWhiteSpace(x))];
     }
 
-    static bool Filter(string[] args, string term)
+    static bool Filter(string[] args, string term, bool matchAll)
     {
         var searchTerms = GetSearchTerms(args);
 
         if (searchTerms.Count > 0)
         {
-            if (!searchTerms.Any(x => term.Contains(x, StringComparison.OrdinalIgnoreCase)))
+            if (matchAll)
             {
-                return false;
+                if (!searchTerms.All(x => term.Contains(x, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
             }
-        }
-
-        return true;
-    }
-
-    static bool FilterExact(string[] args, string term)
-    {
-        var searchTerms = GetSearchTerms(args);
-
-        if (searchTerms.Count > 0)
-        {
-            if (!searchTerms.All(x => term.Equals(x, StringComparison.OrdinalIgnoreCase)))
+            else
             {
-                return false;
+                if (!searchTerms.Any(x => term.Contains(x, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return false;
+                }
             }
         }
 
