@@ -1,5 +1,3 @@
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 namespace Rauch.Commands;
 
 [Name("help")]
@@ -135,8 +133,6 @@ public class Help(IEnumerable<ICommand> availableCommands) : ICommand
 
     public List<CommandInfo> GetFilteredCommandInfos(string[] args)
     {
-        
-
         var commandInfos = GetCommandInfos(args);
         
         var childrenEnumeration = commandInfos

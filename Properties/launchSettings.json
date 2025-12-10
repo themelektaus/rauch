@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "rauch": {
-      "commandName": "Project",
-      "commandLineArgs": "nx"
-    }
-  }
-}

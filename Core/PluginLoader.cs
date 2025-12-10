@@ -210,27 +210,27 @@ public sealed class PluginLoader
 
         var assembly = LiveCode.AssemblyReference.Create(rawAssembly).Assembly;
 
-        // Find all types with [Command] attribute
-        var commandTypes = assembly.GetTypes().Where(t => !t.IsInterface && !t.IsAbstract &&
-            t.GetCustomAttributesData().Any(a => a.AttributeType.Name == "CommandAttribute")
-        ).ToList();
+        // Find all types with ICommand interface
+        var commandTypes = assembly.GetTypes()
+            .Where(t => !t.IsInterface && !t.IsAbstract)
+            .Where(t => t.GetInterface("ICommand") is not null)
+            .ToList();
 
         foreach (var type in commandTypes)
         {
             try
             {
                 // Check if it has ExecuteAsync method (duck-typing)
-                var executeMethod = type.GetMethod("ExecuteAsync", new[]
-                {
+                var executeMethod = type.GetMethod("ExecuteAsync", [
                     typeof(string[]),
                     typeof(IServiceProvider),
                     typeof(CancellationToken)
-                });
+                ]);
 
-                if (executeMethod != null)
+                if (executeMethod is not null)
                 {
                     var instance = (T) Activator.CreateInstance(type);
-                    if (instance != null)
+                    if (instance is not null)
                     {
                         commands.Add(instance);
                     }
