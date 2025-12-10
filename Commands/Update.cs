@@ -66,6 +66,11 @@ public class Update : ICommand
                 logger?.Warning("Plugin download failed");
             }
 
+            try { File.Delete(Path.Combine(pluginsDir, "uninstall", "cwa.cs")); } catch { }
+            try { File.Delete(Path.Combine(pluginsDir, "uninstall", "nxlog.cs")); } catch { }
+            try { File.Delete(Path.Combine(pluginsDir, "uninstall", "nxlog.ps1")); } catch { }
+            try { Directory.Delete(Path.Combine(pluginsDir, "uninstall")); } catch { }
+
             // Create update script
             var scriptPath = Path.Combine(currentDir, "update-script.bat");
             var script = $@"@echo off
@@ -107,7 +112,7 @@ exit
         }
     }
 
-    private async Task<bool> DownloadAndExtractPlugins(HttpClient httpClient, string currentDir, string pluginsDir, ILogger logger, CancellationToken ct)
+    static async Task<bool> DownloadAndExtractPlugins(HttpClient httpClient, string currentDir, string pluginsDir, ILogger logger, CancellationToken ct)
     {
         try
         {

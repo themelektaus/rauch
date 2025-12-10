@@ -134,38 +134,49 @@ public class Help(IEnumerable<ICommand> availableCommands) : ICommand
     public List<CommandInfo> GetFilteredCommandInfos(string[] args)
     {
         var commandInfos = GetCommandInfos(args);
-        
-        var childrenEnumeration = commandInfos
-            .Where(x => x.match == Match.All)
-            .SelectMany(x => x.children ?? [x]);
-
-        childrenEnumeration = childrenEnumeration.Concat(
-            commandInfos
-                .SelectMany(x => x.children ?? [])
-                .Where(x => (x.parent.match != Match.None && x.match != Match.None) || x.match == Match.All)
-        );
-
-        var children = childrenEnumeration.ToList();
 
         var filteredCommandInfos = new List<CommandInfo>();
 
-        foreach (var child in children)
-        {
-            if (child.parent is null)
-            {
-                filteredCommandInfos.Add(child);
-            }
-        }
+        Fill(
+            commandInfos
+                .Where(x => x.match == Match.All)
+                .SelectMany(x => x.children ?? [x])
+                .Concat(
+                    commandInfos
+                        .SelectMany(x => x.children ?? [])
+                        .Where(x => (x.parent.match != Match.None && x.match != Match.None) || x.match == Match.All)
+                )
+        );
 
-        var groups = children.Select(x => x.parent).Where(x => x is not null).Distinct().ToList();
-
-        foreach (var group in groups)
+        if (filteredCommandInfos.Count == 0)
         {
-            filteredCommandInfos.Add(group);
-            group.children.RemoveAll(x => !children.Contains(x));
+            Fill(
+                commandInfos
+                    .SelectMany(x => x.children ?? [])
+                    .Where(x => x.match != Match.None)
+            );
         }
 
         return filteredCommandInfos;
+
+        void Fill(IEnumerable<CommandInfo> children)
+        {
+            foreach (var child in children)
+            {
+                if (child.parent is null)
+                {
+                    filteredCommandInfos.Add(child);
+                }
+            }
+
+            var groups = children.Select(x => x.parent).Where(x => x is not null).Distinct().ToList();
+
+            foreach (var group in groups)
+            {
+                filteredCommandInfos.Add(group);
+                group.children = [.. group.children.Where(children.Contains)];
+            }
+        }
     }
 
     static List<string> GetSearchTerms(string[] args)

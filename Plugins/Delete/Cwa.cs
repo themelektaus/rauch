@@ -1,7 +1,7 @@
-namespace Rauch.Plugins.Uninstall;
+namespace Rauch.Plugins.Delete;
 
 [Name("cwa")]
-[Description("Uninstall ConnectWise Automate agents")]
+[Description("Delete ConnectWise Automate agents")]
 public class Cwa : ICommand
 {
     const string CWA_UNINSTALL_URL = "https://cloud.it-guards.at/download/cwa-uninstall.exe";

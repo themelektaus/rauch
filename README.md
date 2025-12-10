@@ -81,9 +81,9 @@ dotnet run windows win11ready    # Check Windows 11 readiness
 dotnet run gump basic            # System-level configuration (admin required)
 dotnet run gump usr              # User-level configuration
 
-# Uninstall tools
-dotnet run uninstall cwa         # Uninstall ConnectWise Automate agents
-dotnet run uninstall nxlog       # Uninstall NXLog
+# Delete/Uninstall tools
+dotnet run delete cwa            # Delete/Uninstall ConnectWise Automate agents
+dotnet run delete nxlog          # Delete/Uninstall NXLog
 ```
 
 ## Architecture
@@ -269,9 +269,9 @@ rauch/
 │   │   ├── Activate.cs   # Activate Windows
 │   │   ├── Win11Ready.cs # Windows 11 readiness check
 │   │   └── Logout.ps1    # Logout script
-│   ├── Uninstall/        # Uninstall command group (Rauch.Plugins.Uninstall)
-│   │   ├── Cwa.cs        # Uninstall ConnectWise Automate
-│   │   ├── Nxlog.cs      # Uninstall NXLog
+│   ├── Delete/           # Delete/Uninstall command group (Rauch.Plugins.Delete)
+│   │   ├── Cwa.cs        # Delete/Uninstall ConnectWise Automate
+│   │   ├── Nxlog.cs      # Delete/Uninstall NXLog
 │   │   └── Nxlog.ps1     # PowerShell script
 │   └── Gump/             # Windows setup wizards (Rauch.Plugins.Gump)
 │       ├── Basic.cs      # System-level configuration

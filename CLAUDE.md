@@ -263,9 +263,9 @@ Plugins/
 │   ├── Win11Ready.cs            # Check Windows 11 readiness
 │   ├── Activate.cs              # Activate Windows
 │   └── Logout.ps1               # Logout script
-├── Uninstall/                   # Uninstall tools (namespace: Rauch.Plugins.Uninstall)
-│   ├── Cwa.cs                   # Uninstall ConnectWise
-│   ├── Nxlog.cs                 # Uninstall NXLog
+├── Delete/                      # Delete/Uninstall tools (namespace: Rauch.Plugins.Delete)
+│   ├── Cwa.cs                   # Delete/Uninstall ConnectWise
+│   ├── Nxlog.cs                 # Delete/Uninstall NXLog
 │   └── Nxlog.ps1
 └── Gump/                        # Windows setup wizards (namespace: Rauch.Plugins.Gump)
     ├── Basic.cs                 # System-level configuration (admin)

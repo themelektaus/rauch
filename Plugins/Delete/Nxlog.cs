@@ -1,4 +1,4 @@
-namespace Rauch.Plugins.Uninstall;
+namespace Rauch.Plugins.Delete;
 
 [Name("nxlog")]
 public class Nxlog : ICommand
