@@ -13,7 +13,7 @@ public class Nxlog : ICommand
             return;
         }
 
-        var exitCode = await ExecutePowershellFile(@"plugins\uninstall\nxlog.ps1", flags: CommandFlags.NoProfile, logger: logger, ct: ct);
+        var exitCode = await ExecutePowershellFile(@"plugins\delete\nxlog.ps1", flags: CommandFlags.NoProfile, logger: logger, ct: ct);
 
         logger?.Exit(exitCode);
     }

@@ -11,12 +11,22 @@ public class Debug : ICommand
 
         if (args.Length == 0)
         {
+            logger?.Debug("rauch debug clear");
+            logger?.Debug("rauch debug build");
             logger?.Debug("rauch debug publish");
             return;
         }
 
         switch (args[0])
         {
+            case "clear":
+                Run("dotnet clean && rmdir /S /Q .vs && rmdir /S /Q bin && rmdir /S /Q Build && rmdir /S /Q obj && del rauch.csproj.user && del Properties\\PublishProfiles\\FolderProfile.pubxml.user && del Properties\\launchSettings.json && dotnet build");
+                break;
+
+            case "build":
+                Run("dotnet build");
+                break;
+
             case "publish":
                 Run("dotnet publish /p:PublishProfile=Properties\\PublishProfiles\\FolderProfile.pubxml");
                 break;
