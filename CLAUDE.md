@@ -12,6 +12,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build the project
 dotnet build
 
+# Publish the project (using publish.bat or manually)
+publish.bat                        # Windows batch script for quick publishing
+dotnet publish /p:PublishProfile=Properties\PublishProfiles\FolderProfile.pubxml
+
 # Run without arguments (shows help)
 dotnet run
 
@@ -26,6 +30,12 @@ dotnet run install claude          # Plugin: Install Claude Code
 dotnet run install rauchmelder     # Plugin: Install Rauchmelder with .NET 9
 dotnet run gump basic              # Run Windows configuration wizard
 dotnet run update                  # Update rauch from GitHub
+
+# Debug commands (DEBUG builds only)
+dotnet run debug                   # Show available debug commands
+dotnet run debug clear             # Clean build artifacts and rebuild
+dotnet run debug build             # Build the project
+dotnet run debug publish           # Publish the project
 ```
 
 ## Architecture
@@ -486,8 +496,9 @@ This command is automatically available as `rauch run ping`.
 - `Usings.ps1`: PowerShell script that generates `Usings.g.cs` from `Usings.cs` during build
 - `.gitignore`: Ignores build artifacts and plugin cache
 
-**Installation Scripts**:
+**Build and Installation Scripts**:
 - `install.ps1`: PowerShell installation script that downloads rauch.exe to `~/.rauch/bin`, adds it to user PATH, and launches it
+- `publish.bat`: Windows batch script for quick publishing (runs `dotnet publish` with FolderProfile)
 - `ConvertPngToIco.ps1`: Utility script to convert PNG images to multi-resolution ICO files (256x256, 128x128, 64x64, 48x48, 32x32, 16x16)
 - `PackPlugins.ps1`: PowerShell script to pack plugins into a ZIP file for distribution (runs before Publish)
 
