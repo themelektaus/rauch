@@ -3,106 +3,51 @@ using System.Reflection;
 
 namespace Rauch.Core;
 
-/// <summary>
-/// Helper class for reading command metadata from attributes with caching
-/// </summary>
 public static class CommandMetadata
 {
-    // Cache for attributes to reduce reflection overhead
-    private static readonly ConcurrentDictionary<Type, CommandAttribute> _attributeCache = new();
-    private static readonly ConcurrentDictionary<Type, ValidationAttribute[]> _validationCache = new();
+    static readonly ConcurrentDictionary<Type, Metadata> _metadataCache = new();
 
-    /// <summary>
-    /// Reads the CommandAttribute from a command class (with caching)
-    /// </summary>
-    public static CommandAttribute GetAttribute(ICommand command)
+    public class Metadata
     {
-        return GetAttribute(command.GetType());
-    }
+        public string Name { get; init; }
+        public string Keywords { get; init; }
+        public string Description { get; init; }
+        public ValidationAttribute[] Validations { get; set; }
 
-    /// <summary>
-    /// Reads the CommandAttribute from a type (with caching)
-    /// </summary>
-    public static CommandAttribute GetAttribute(Type type)
-    {
-        return _attributeCache.GetOrAdd(type, t => t.GetCustomAttribute<CommandAttribute>());
-    }
-
-    /// <summary>
-    /// Reads all ValidationAttributes from a command (with caching)
-    /// </summary>
-    public static ValidationAttribute[] GetValidationAttributes(ICommand command)
-    {
-        return GetValidationAttributes(command.GetType());
-    }
-
-    /// <summary>
-    /// Reads all ValidationAttributes from a type (with caching)
-    /// </summary>
-    public static ValidationAttribute[] GetValidationAttributes(Type type)
-    {
-        return _validationCache.GetOrAdd(type, t => t.GetCustomAttributes<ValidationAttribute>().ToArray());
-    }
-
-    /// <summary>
-    /// Returns the name of the command
-    /// </summary>
-    public static string GetName(ICommand command)
-    {
-        var attr = GetAttribute(command);
-        return attr?.Name ?? command.GetType().Name.ToLower();
-    }
-
-    /// <summary>
-    /// Returns the description of the command
-    /// </summary>
-    public static string GetDescription(ICommand command)
-    {
-        var attr = GetAttribute(command);
-        return attr?.Description ?? "No description available";
-    }
-
-    /// <summary>
-    /// Returns the usage text of the command
-    /// </summary>
-    public static string GetUsage(ICommand command, string parentCommand = null)
-    {
-        var attr = GetAttribute(command);
-        if (attr != null)
+        public bool MatchesName(string name)
         {
-            return attr.GetUsage(parentCommand);
+            return Name.Equals(name, StringComparison.OrdinalIgnoreCase);
         }
-
-        // Fallback if no attribute is present
-        var name = GetName(command);
-        return parentCommand != null ? $"rauch {parentCommand} {name}" : $"rauch {name}";
     }
 
-    /// <summary>
-    /// Checks if a command name matches
-    /// </summary>
-    public static bool MatchesName(ICommand command, string name)
+    public static Metadata Get(ICommand command)
     {
-        var attr = GetAttribute(command);
-        return attr?.MatchesName(name) ?? GetName(command).Equals(name, StringComparison.OrdinalIgnoreCase);
+        var type = command.GetType();
+        var name = type.GetCustomAttribute<NameAttribute>()?.Name ?? command.GetType().Name.ToLower();
+        var keywords = type.GetCustomAttribute<KeywordsAttribute>()?.Keywords ?? string.Empty;
+        return _metadataCache.GetOrAdd(type, type => new()
+        {
+            Name = name,
+            Keywords = $"{name} {keywords}".Trim().ToLower(),
+            Description = type.GetCustomAttribute<DescriptionAttribute>()?.Description ?? string.Empty,
+            Validations = [.. type.GetCustomAttributes<ValidationAttribute>()]
+        });
     }
 
     /// <summary>
     /// Validates arguments against all ValidationAttributes
     /// </summary>
-    public static (bool isValid, string errorMessage) ValidateArguments(ICommand command, string[] args)
+    public static bool ValidateArguments(ICommand command, string[] args, out string errorMessage)
     {
-        var validations = GetValidationAttributes(command);
-
-        foreach (var validation in validations)
+        foreach (var validation in Get(command).Validations)
         {
-            var result = validation.Validate(args);
-            if (!result.isValid)
+            if (!validation.Validate(args, out errorMessage))
             {
-                return result;
+                return false;
             }
         }
 
-        return (true, null);
+        errorMessage = null;
+        return true;
     }
 }

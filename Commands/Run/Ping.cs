@@ -1,10 +1,10 @@
 namespace Rauch.Commands.Run;
 
-[Command("ping", Parameters = "<host1> <host2> ...")]
+[Name("ping")]
 [MinArguments(1)]
 public class Ping : ICommand
 {
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

@@ -50,36 +50,22 @@ if (args.Length >= 2)
 
 if (helpCommand is not null)
 {
-    var commandLines = helpCommand.GetCommandLines(args);
-
-    if (commandLines.Count == 1 && commandLines.First().Value.Count == 1)
+    var commandInfos = helpCommand.GetFilteredCommandInfos(args).ToList();
+    
+    if (commandInfos.Count == 1 && commandInfos.SelectMany(x => x.children ?? []).Count() <= 1)
     {
-        var commandLine = commandLines.First();
+        var commandInfo = commandInfos.First();
 
-        string[] commandLineArgs;
-
-        if (commandLine.Key is Help.GroupInfo group)
-        {
-            commandLineArgs = [group.name, commandLine.Value.First().name];
-        }
-        else if (commandLine.Key is ICommand command)
-        {
-            commandLineArgs = [CommandMetadata.GetName(command), ""];
-        }
-        else
-        {
-            logger.Error("Unexpected command line key type.");
-            goto Exit;
-        }
+        string[] commandArgs = [commandInfo.name, commandInfo.children?.FirstOrDefault().name ?? string.Empty];
 
         logger.Write(" >_ ", newLine: false, color: ConsoleColor.DarkCyan);
         logger.Write("rauch ", newLine: false, color: ConsoleColor.Cyan);
-        logger.Write(string.Join(" ", commandLineArgs), newLine: false, color: ConsoleColor.Yellow);
+        logger.Write(string.Join(" ", commandArgs).Trim(), newLine: false, color: ConsoleColor.Yellow);
         logger.Write(" ... ", newLine: false);
 
         if (logger.Choice("  ", ["continue", "cancel"]) == 0)
         {
-            var command = CommandLoader.FindCommand(commands, commandLineArgs[0], commandLineArgs[1]);
+            var command = CommandLoader.FindCommand(commands, commandArgs[0], commandArgs[1]);
             if (command is not null)
             {
                 await ValidateAndExecuteAsync(command, [.. args.Skip(1)]);
@@ -93,7 +79,7 @@ if (helpCommand is not null)
     }
     else
     {
-        await helpCommand.ExecuteAsync(args, services);
+        await helpCommand.ExecuteAsync(args, services, default);
     }
 }
 
@@ -102,13 +88,11 @@ await SoundPlayer.WaitAndDispose();
 
 async Task ValidateAndExecuteAsync(ICommand command, string[] args)
 {
-    var (isValid, errorMessage) = CommandMetadata.ValidateArguments(command, args);
-    if (isValid)
+    if (CommandMetadata.ValidateArguments(command, args, out var errorMessage))
     {
-        await command.ExecuteAsync(args, services);
+        await command.ExecuteAsync(args, services, default);
         return;
     }
 
     logger.Error($"Validation error: {errorMessage}");
-    logger.Info($"Usage: {CommandMetadata.GetUsage(command)}");
 }

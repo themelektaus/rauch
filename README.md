@@ -51,6 +51,8 @@ dotnet run <command> [arguments]
 dotnet run update              # Update rauch to latest version
 dotnet run run ping localhost  # Run ping command
 dotnet run windows winrm       # Enable WinRM and configure remote management
+dotnet run windows interfaces  # Open Network Adapter Settings
+dotnet run windows manager     # Open Computer Management
 ```
 
 ### Plugin Commands
@@ -117,10 +119,11 @@ Plugins are `.cs` files that are compiled at runtime using Roslyn with C# 13 sup
 **Minimal Plugin Example:**
 
 ```csharp
-[Command("hello", "Greets the user")]
+[Name("hello")]
+[Description("Greets the user")]
 public class HelloPlugin : ICommand
 {
-    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
         logger?.Success("Hello from plugin!");
@@ -134,13 +137,14 @@ public class HelloPlugin : ICommand
 ```csharp
 namespace Rauch.Plugins.Install;
 
-[Command("mytool", "Download and run MyTool")]
+[Name("mytool")]
+[Description("Download and run MyTool")]
 public class MyTool : ICommand
 {
     const string DOWNLOAD_URL = "https://example.com/mytool.exe";
     const string FILE_NAME = "mytool.exe";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 
@@ -163,10 +167,10 @@ public class MyTool : ICommand
 ```csharp
 namespace Rauch.Plugins.Gump;
 
-[Command("config")]
+[Name("config")]
 public class Config : ICommand
 {
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 
@@ -240,7 +244,9 @@ rauch/
 │       ├── WinRm.cs      # WinRM configuration subcommand
 │       ├── WinRm.ps1     # Embedded PowerShell script
 │       ├── Update.cs     # Windows Update subcommand
-│       └── Update.ps1    # Embedded PowerShell script
+│       ├── Update.ps1    # Embedded PowerShell script
+│       ├── Interfaces.cs # Open Network Adapter Settings
+│       └── Manager.cs    # Open Computer Management
 ├── Plugins/               # Runtime plugins (compiled at runtime)
 │   ├── .cache/           # Compiled plugin cache (auto-generated)
 │   ├── Install/          # Install command group (Rauch.Plugins.Install)
@@ -296,17 +302,19 @@ rauch/
 1. Create a file in `Commands/<CommandName>.cs`
 2. Use namespace `Rauch.Commands`
 3. Implement `ICommand` interface
-4. Add `[Command]` attribute with name and description
+4. Add `[Name]` and optionally `[Description]`, `[Keywords]` attributes
 5. Add validation attributes as needed
 
 ```csharp
 namespace Rauch.Commands;
 
-[Command("mycommand", "Description of my command", Parameters = "<arg1>")]
+[Name("mycommand")]
+[Description("Description of my command")]
+[Keywords("example demo")]
 [MinArguments(1)]
 public class MyCommand : ICommand
 {
-    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
         logger?.Info("Processing command...");
@@ -325,11 +333,13 @@ public class MyCommand : ICommand
 ```csharp
 namespace Rauch.Commands.Run;
 
-[Command("ping", "Ping hosts", Parameters = "<host1> <host2> ...")]
+[Name("ping")]
+[Description("Ping hosts")]
+[Keywords("network connectivity")]
 [MinArguments(1)]
 public class Ping : ICommand
 {
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
         // Implementation

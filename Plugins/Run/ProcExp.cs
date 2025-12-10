@@ -1,13 +1,14 @@
 namespace Rauch.Plugins.Run;
 
-[Command("procexp", "Download and run Process Explorer")]
+[Name("procexp")]
+[Description("Download and run Process Explorer")]
 public class ProcExp : ICommand
 {
     const string DOWNLOAD_URL = "https://cloud.it-guards.at/download/procexp64.exe";
     const string DATA_DIRECTORY = "data";
     const string FILE = "procexp64.exe";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

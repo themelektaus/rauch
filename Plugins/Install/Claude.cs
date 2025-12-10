@@ -1,11 +1,12 @@
 namespace Rauch.Plugins.Install;
 
-[Command("claude", "Install Claude Code and portable Git Bash")]
+[Name("claude")]
+[Description("Install Claude Code and portable Git Bash")]
 public class Claude : ICommand
 {
     const string PORTABLE_GIT_ZIP_URL = "https://cloud.it-guards.at/download/PortableGit.zip";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

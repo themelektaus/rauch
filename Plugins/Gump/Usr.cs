@@ -1,9 +1,9 @@
 namespace Rauch.Plugins.Gump;
 
-[Command("usr")]
+[Name("usr")]
 public class Usr : ICommand
 {
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

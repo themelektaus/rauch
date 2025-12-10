@@ -1,10 +1,11 @@
 #if DEBUG
 namespace Rauch.Commands;
 
-[Command("debug", "Internal debug command")]
+[Name("debug")]
+[Description("Internal debug command")]
 public class Debug : ICommand
 {
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

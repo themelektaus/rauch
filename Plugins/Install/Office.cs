@@ -1,6 +1,7 @@
 namespace Rauch.Plugins.Install;
 
-[Command("office", "Download and install Microsoft Office")]
+[Name("office")]
+[Description("Download and install Microsoft Office")]
 public class Office : ICommand
 {
     const string DOWNLOAD_URL = "https://cloud.it-guards.at/download/OInstall_x64.exe";
@@ -8,7 +9,7 @@ public class Office : ICommand
     const string FILE_NAME = "OInstall_x64.exe";
 
     [OS("windows")]
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

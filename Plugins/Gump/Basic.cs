@@ -1,10 +1,10 @@
 namespace Rauch.Plugins.Gump;
 
-[Command("basic")]
+[Name("basic")]
 public class Basic : ICommand
 {
     [OS("windows")]
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

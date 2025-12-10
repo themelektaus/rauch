@@ -1,6 +1,7 @@
 namespace Rauch.Commands.Windows;
 
-[Command("winrm", "Enable WinRM and configure remote management")]
+[Name("winrm")]
+[Description("Enable WinRM and configure remote management")]
 public class WinRm : ICommand
 {
     [OS("windows")]

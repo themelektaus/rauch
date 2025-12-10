@@ -1,7 +1,8 @@
 #if !DEBUG
 namespace Rauch.Commands;
 
-[Command("update", "Update rauch to the latest version from GitHub")]
+[Name("update")]
+[Description("Update rauch to the latest version from GitHub")]
 public class Update : ICommand
 {
     const string GitHubRawUrl = "https://raw.githubusercontent.com/themelektaus/rauch/main/Build/Windows/rauch.exe";
@@ -9,7 +10,7 @@ public class Update : ICommand
     const string TempFileName = "rauch.exe.new";
     const string PluginsZipFileName = "Plugins.zip";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

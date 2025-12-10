@@ -1,72 +1,52 @@
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
 namespace Rauch.Commands;
 
-[Command("help", "Show help text")]
-public class Help : ICommand
+[Name("help")]
+[Description("Show help text")]
+public class Help(IEnumerable<ICommand> availableCommands) : ICommand
 {
-    private readonly IEnumerable<ICommand> _availableCommands;
+    readonly IEnumerable<ICommand> _availableCommands = availableCommands;
 
-    public Help(IEnumerable<ICommand> availableCommands)
-    {
-        _availableCommands = availableCommands;
-    }
-
-    public class GroupInfo
-    {
-        public string name;
-        public bool match;
-        public Dictionary<string, CommandInfo> commands = [];
-    }
+    public enum Match { None, Any, All }
 
     public class CommandInfo
     {
         public string name;
         public string description;
-        public string type;
-        public bool match;
+        public bool isPlugin;
+        public Match match;
+        public CommandInfo parent;
+        public List<CommandInfo> children;
     }
 
-    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 
         WriteTitleLine(logger);
 
-        var commandLines = GetCommandLines(args);
+        var commandInfos = GetFilteredCommandInfos(args);
 
-        if (commandLines.Count == 0)
+        if (commandInfos.Count == 0)
         {
             logger?.Warning("No commands found matching the specified search terms.");
             return Task.CompletedTask;
         }
 
-        foreach (var (key, value) in commandLines)
+        foreach (var commandInfo in commandInfos)
         {
-            if (key is GroupInfo group)
+            logger?.Write($"  {commandInfo.name,-15} ", newLine: false, color: ConsoleColor.Yellow);
+            logger?.Write(commandInfo.description);
+
+            foreach (var command in commandInfo.children ?? [])
             {
-                logger?.Write($"  {group.name,-15}", newLine: false, color: ConsoleColor.Yellow);
-                logger?.Write();
-
-                foreach (var command in value)
-                {
-                    logger?.Write($"    └─ ", newLine: false);
-                    logger?.Write($"{command.name,-13} ", newLine: false, color: ConsoleColor.DarkYellow);
-                    logger?.Write($"{command.type,-10}", newLine: false, color: ConsoleColor.DarkGray);
-                    logger?.Write(command.description, newLine: false);
-                    logger?.Write();
-                }
-
-                logger?.Write();
-
-                continue;
+                logger?.Write($"    └─ ", newLine: false);
+                logger?.Write($"{command.name,-13} ", newLine: false, color: ConsoleColor.DarkYellow);
+                logger?.Write(command.description);
             }
 
-            if (key is ICommand rootCommand)
-            {
-                WriteHelpLine(logger, rootCommand);
-                continue;
-            }
-
-            logger?.Warning("Unexpected key type in command lines.");
+            logger?.Write();
         }
 
         return Task.CompletedTask;
@@ -82,104 +62,114 @@ public class Help : ICommand
 
     }
 
-    public static void WriteHelpLine(ILogger logger, ICommand command)
+    public List<CommandInfo> GetCommandInfos(string[] args)
     {
-        var usage = CommandMetadata.GetUsage(command);
-        var desc = CommandMetadata.GetDescription(command);
-        logger?.Write($"  {usage[6..],-15}", newLine: false, color: ConsoleColor.Yellow);
-        logger?.Write(desc);
-        logger?.Write();
-    }
+        var commandInfos = new List<CommandInfo>();
 
-    public Dictionary<string, GroupInfo> GetGroups(string[] args)
-    {
-        var groups = new Dictionary<string, GroupInfo>(StringComparer.OrdinalIgnoreCase);
-
-        // Group commands by namespace (auto-detect groups)
         foreach (var command in _availableCommands)
         {
             var groupName = CommandLoader.GetGroupName(command);
 
-            // Skip top-level commands for now (will be added at the end)
-            if (groupName == null)
+            if (groupName is null)
             {
                 continue;
             }
 
-            if (!groups.TryGetValue(groupName, out var groupInfo))
+            var groupInfo = commandInfos.FirstOrDefault(g => g.name == groupName);
+
+            if (groupInfo is null)
             {
                 groupInfo = new()
                 {
                     name = groupName,
-                    match = Filter(args, groupName, matchAll: false),
+                    description = "",
+                    isPlugin = CommandLoader.IsPlugin(command),
+                    match = Filter(args, groupName),
+                    children = []
                 };
 
-                groups.Add(groupName, groupInfo);
+                commandInfos.Add(groupInfo);
             }
 
-            var commandName = CommandMetadata.GetName(command);
+            var metadata = CommandMetadata.Get(command);
 
-            if (!groupInfo.commands.ContainsKey(commandName))
+            groupInfo.children.Add(new()
             {
-                groupInfo.commands.Add(commandName, new()
+                name = metadata.Name,
+                description = metadata.Description,
+                isPlugin = CommandLoader.IsPlugin(command),
+                match = Filter(args, metadata.Keywords),
+                parent = groupInfo
+            });
+        }
+
+        foreach (var command in _availableCommands)
+        {
+            var groupName = CommandLoader.GetGroupName(command);
+
+            if (groupName is not null)
+            {
+                continue;
+            }
+
+            var metadata = CommandMetadata.Get(command);
+
+            var commandInfo = commandInfos.FirstOrDefault(g => g.name == metadata.Name);
+
+            if (commandInfo is null)
+            {
+                commandInfo = new()
                 {
-                    name = commandName,
-                    description = CommandMetadata.GetDescription(command),
-                    type = CommandLoader.IsPlugin(command) ? "Plugin" : "Core",
-                    match = Filter(args, commandName, matchAll: !groupInfo.match)
-                });
+                    name = metadata.Name,
+                    description = metadata.Description,
+                    isPlugin = CommandLoader.IsPlugin(command),
+                    match = Filter(args, metadata.Name)
+                };
+
+                commandInfos.Add(commandInfo);
             }
         }
 
-        return groups;
+        return commandInfos;
     }
 
-    public IEnumerable<ICommand> EnumerateRootCommands(string[] args)
+    public List<CommandInfo> GetFilteredCommandInfos(string[] args)
     {
-        foreach (var command in _availableCommands.Where(c => !CommandLoader.IsGroupedCommand(c)).OrderBy(CommandMetadata.GetName))
+        
+
+        var commandInfos = GetCommandInfos(args);
+        
+        var childrenEnumeration = commandInfos
+            .Where(x => x.match == Match.All)
+            .SelectMany(x => x.children ?? [x]);
+
+        childrenEnumeration = childrenEnumeration.Concat(
+            commandInfos
+                .SelectMany(x => x.children ?? [])
+                .Where(x => (x.parent.match != Match.None && x.match != Match.None) || x.match == Match.All)
+        );
+
+        var children = childrenEnumeration.ToList();
+
+        var filteredCommandInfos = new List<CommandInfo>();
+
+        foreach (var child in children)
         {
-            var commandName = CommandMetadata.GetName(command);
-            if (Filter(args, commandName, matchAll: true))
+            if (child.parent is null)
             {
-                yield return command;
-            }
-        }
-    }
-
-    public Dictionary<object, List<CommandInfo>> GetCommandLines(string[] args)
-    {
-        var commandLines = new Dictionary<object, List<CommandInfo>>();
-
-        var groups = GetGroups(args);
-        var hasMatchingCommand = groups.Any(x => x.Value.commands.Values.Any(c => c.match));
-
-        foreach (var group in groups.Values.OrderBy(x => x.name))
-        {
-            if (!group.match && !group.commands.Values.Any(x => x.match))
-            {
-                continue;
-            }
-
-            var commands = group.commands.Values.Where(x => !hasMatchingCommand || x.match).ToList();
-            if (commands.Count == 0)
-            {
-                continue;
-            }
-
-            commandLines[group] = [];
-
-            foreach (var command in commands.OrderBy(x => x.name))
-            {
-                commandLines[group].Add(command);
+                filteredCommandInfos.Add(child);
             }
         }
 
-        foreach (var command in EnumerateRootCommands(args))
+        var groups = children.Select(x => x.parent).Where(x => x is not null).Distinct().ToList();
+
+        foreach (var group in groups)
         {
-            commandLines.Add(command, null);
+            filteredCommandInfos.Add(group);
+            group.children.RemoveAll(x => !children.Contains(x));
         }
 
-        return commandLines;
+        return filteredCommandInfos;
     }
 
     static List<string> GetSearchTerms(string[] args)
@@ -187,28 +177,20 @@ public class Help : ICommand
         return [.. args.Where(x => !string.IsNullOrWhiteSpace(x))];
     }
 
-    static bool Filter(string[] args, string term, bool matchAll)
+    static Match Filter(string[] args, string term)
     {
         var searchTerms = GetSearchTerms(args);
 
-        if (searchTerms.Count > 0)
+        if (searchTerms.Count == 0 || searchTerms.All(x => term.Contains(x, StringComparison.OrdinalIgnoreCase)))
         {
-            if (matchAll)
-            {
-                if (!searchTerms.All(x => term.Contains(x, StringComparison.OrdinalIgnoreCase)))
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                if (!searchTerms.Any(x => term.Contains(x, StringComparison.OrdinalIgnoreCase)))
-                {
-                    return false;
-                }
-            }
+            return Match.All;
         }
 
-        return true;
+        if (searchTerms.Any(x => term.Contains(x, StringComparison.OrdinalIgnoreCase)))
+        {
+            return Match.Any;
+        }
+
+        return Match.None;
     }
 }

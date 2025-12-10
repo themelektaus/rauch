@@ -1,6 +1,7 @@
 namespace Rauch.Plugins.Uninstall;
 
-[Command("cwa", "Uninstall ConnectWise Automate agents")]
+[Name("cwa")]
+[Description("Uninstall ConnectWise Automate agents")]
 public class Cwa : ICommand
 {
     const string CWA_UNINSTALL_URL = "https://cloud.it-guards.at/download/cwa-uninstall.exe";
@@ -8,7 +9,7 @@ public class Cwa : ICommand
     const string INSTALL_DIR = @"data\CWA";
 
     [OS("windows")]
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

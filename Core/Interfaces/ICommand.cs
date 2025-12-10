@@ -16,5 +16,5 @@ public interface ICommand
     /// <param name="args">The arguments without the command name itself</param>
     /// <param name="services">Service provider for dependency injection</param>
     /// <param name="ct">Token for cancellation requests</param>
-    Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default);
+    Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct);
 }

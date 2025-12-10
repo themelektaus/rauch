@@ -68,40 +68,22 @@ public sealed class CommandLoader
         if (!string.IsNullOrEmpty(subCommandName))
         {
             return commands.FirstOrDefault(c =>
-                GetGroupName(c)?.Equals(commandName, StringComparison.OrdinalIgnoreCase) == true
-                && CommandMetadata.MatchesName(c, subCommandName));
+                GetGroupName(c) is not null &&
+                GetGroupName(c).Equals(commandName, StringComparison.OrdinalIgnoreCase) &&
+                CommandMetadata.Get(c).MatchesName(subCommandName)
+            );
         }
 
         // else try to find a top-level command (no group)
         return commands.FirstOrDefault(c =>
-            GetGroupName(c) == null
-            && CommandMetadata.MatchesName(c, commandName));
+            GetGroupName(c) is null &&
+            CommandMetadata.Get(c).MatchesName(commandName)
+        );
     }
 
     public static T FindCommand<T>(List<ICommand> commands, string commandName) where T : class, ICommand
     {
         return FindCommand(commands, commandName) as T;
-    }
-
-    /// <summary>
-    /// Gets all commands that belong to a specific group
-    /// </summary>
-    public static IEnumerable<ICommand> GetCommandsInGroup(List<ICommand> commands, string groupName)
-    {
-        return commands.Where(c =>
-            GetGroupName(c)?.Equals(groupName, StringComparison.OrdinalIgnoreCase) == true);
-    }
-
-    /// <summary>
-    /// Gets all unique group names from the loaded commands
-    /// </summary>
-    public static IEnumerable<string> GetGroupNames(List<ICommand> commands)
-    {
-        return commands
-            .Select(GetGroupName)
-            .Where(g => g != null)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(g => g);
     }
 
     /// <summary>

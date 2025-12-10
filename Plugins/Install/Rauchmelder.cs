@@ -1,6 +1,7 @@
 namespace Rauch.Plugins.Install;
 
-[Command("rauchmelder", "Install Rauchmelder application with .NET 9 runtime", Parameters = "https|http")]
+[Name("rauchmelder")]
+[Description("Install Rauchmelder application with .NET 9 runtime")]
 public class Rauchmelder : ICommand
 {
     const string DOTNET_RUNTIME_URL = "://cloud.it-guards.at/download/dotnet-runtime-9.0.4-win-x64.exe";
@@ -8,7 +9,7 @@ public class Rauchmelder : ICommand
     const string INSTALL_DIR = @"C:\ProgramData\Rauchmelder";
 
     [OS("windows")]
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var scheme = args.FirstOrDefault() == "http" ? "http" : "https";
 

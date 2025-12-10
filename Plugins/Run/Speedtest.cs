@@ -1,9 +1,9 @@
 namespace Rauch.Plugins.Run;
 
-[Command("speedtest")]
+[Name("speedtest")]
 public class Speedtest : ICommand
 {
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

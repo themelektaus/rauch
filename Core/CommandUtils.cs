@@ -65,11 +65,9 @@ public static class CommandUtils
                     }
 
                     // Manual extraction
-                    using (var entryStream = entry.Open())
-                    using (var outputStream = new FileStream(path, FileMode.Create, FileAccess.Write))
-                    {
-                        await entryStream.CopyToAsync(outputStream, ct);
-                    }
+                    using var entryStream = entry.Open();
+                    using var outputStream = new FileStream(path, FileMode.Create, FileAccess.Write);
+                    await entryStream.CopyToAsync(outputStream, ct);
                 }
             }
         }

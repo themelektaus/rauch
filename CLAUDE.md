@@ -71,22 +71,24 @@ All command metadata is declared via attributes, **never as properties**:
 ```csharp
 namespace Rauch.Commands;
 
-[Command("sum", "Adds the specified numbers", Parameters = "<number1> <number2> ...")]
+[Name("sum")]
+[Description("Adds the specified numbers")]
+[Keywords("math calculation")]
 [MinArguments(1)]
 [NumericArguments]
 public class Sum : ICommand
 {
-    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         // Implementation
     }
 }
 ```
 
-**CommandAttribute Properties**:
-- `Name` (required): Command name
-- `Description` (optional): Command description (default: empty string)
-- `Parameters`: Optional usage string (auto-generated if omitted)
+**Command Metadata Attributes** (`CommandAttributes.cs`):
+- `[Name(string name)]`: Command name (required)
+- `[Description(string description)]`: Command description (optional)
+- `[Keywords(string keywords)]`: Search keywords for help command filtering (optional)
 
 ### Validation System
 
@@ -101,10 +103,10 @@ Validation errors are caught in `Program.cs` before `ExecuteAsync` is called.
 ### Performance Optimizations
 
 **CommandMetadata Caching** (`CommandMetadata.cs`):
-- Uses `ConcurrentDictionary` to cache reflection results
-- `_attributeCache`: Caches `CommandAttribute` lookups
-- `_validationCache`: Caches `ValidationAttribute[]` lookups
-- Always use `CommandMetadata.GetName()`, `GetDescription()`, etc. instead of direct reflection
+- Uses `ConcurrentDictionary<Type, Metadata>` to cache all command metadata
+- `Metadata` class contains: Name, Keywords, Description, and ValidationAttribute[]
+- Single cache reduces memory overhead and improves lookup performance
+- `CommandMetadata.Get(command)` returns cached metadata instance
 
 **Plugin Compilation Caching** (`PluginLoader.cs`):
 - Compiled plugins cached in `Plugins/.cache/` as DLLs
@@ -274,10 +276,11 @@ Plugins/
 
 **Minimal Plugin** (everything auto-injected):
 ```csharp
-[Command("hello", "Greets the user")]
+[Name("hello")]
+[Description("Greets the user")]
 public class HelloPlugin : ICommand
 {
-    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
         logger?.Success("Hello from plugin!");
@@ -290,10 +293,11 @@ public class HelloPlugin : ICommand
 ```csharp
 namespace Rauch.Plugins.Install;
 
-[Command("hello", "Greets the user", Parameters = "[name]")]
+[Name("hello")]
+[Description("Greets the user")]
 public class HelloPlugin : ICommand
 {
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
         var name = args.Length > 0 ? args[0] : "World";
@@ -388,7 +392,7 @@ namespace Rauch.Plugins.<GroupName>;
 1. Create file in `Commands/<CommandName>.cs`
 2. Use namespace `Rauch.Commands`
 3. Implement `ICommand` interface
-4. Add `[Command]` attribute with name and description
+4. Add `[Name]` and optionally `[Description]`, `[Keywords]` attributes
 5. Add validation attributes as needed
 6. Add required using statements (no ImplicitUsings)
 7. Command will be automatically discovered and loaded
@@ -396,11 +400,13 @@ namespace Rauch.Plugins.<GroupName>;
 ```csharp
 namespace Rauch.Commands;
 
-[Command("mycommand", "Description of my command", Parameters = "<arg1>")]
+[Name("mycommand")]
+[Description("Description of my command")]
+[Keywords("example demo")]
 [MinArguments(1)]
 public class MyCommand : ICommand
 {
-    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
         logger?.Info("Processing command...");
@@ -414,17 +420,19 @@ public class MyCommand : ICommand
 
 1. Create folder `Commands/<GroupName>/`
 2. Create subcommand files in the folder with namespace `Rauch.Commands.<GroupName>`
-3. Each file implements `ICommand` with `[Command]` attribute
+3. Each file implements `ICommand` with `[Name]` and optionally `[Description]`, `[Keywords]` attributes
 4. Groups are automatically created based on namespace - no index file needed!
 
 ```csharp
 namespace Rauch.Commands.Run;
 
-[Command("ping", "Ping hosts", Parameters = "<host1> <host2> ...")]
+[Name("ping")]
+[Description("Ping hosts")]
+[Keywords("network connectivity")]
 [MinArguments(1)]
 public class Ping : ICommand
 {
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
         // Implementation
@@ -468,7 +476,7 @@ This command is automatically available as `rauch run ping`.
 - `Core/Interfaces/ILogger.cs`: Logger interface with severity levels and interactive UI
 
 **Attributes**:
-- `Core/Attributes/CommandAttribute.cs`: Command metadata declaration
+- `Core/Attributes/CommandAttributes.cs`: Command metadata attributes (Name, Keywords, Description)
 - `Core/Attributes/ValidationAttribute.cs`: Base class for argument validators
 
 **Project Configuration**:
@@ -574,13 +582,14 @@ This command is automatically available as `rauch run ping`.
 ```csharp
 namespace Rauch.Plugins.Install;
 
-[Command("mytool", "Download and run MyTool")]
+[Name("mytool")]
+[Description("Download and run MyTool")]
 public class MyTool : ICommand
 {
     const string DOWNLOAD_URL = "https://example.com/mytool.exe";
     const string FILE_NAME = "mytool.exe";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 
@@ -602,13 +611,14 @@ public class MyTool : ICommand
 ```csharp
 namespace Rauch.Plugins.Install;
 
-[Command("portable-app", "Install and run portable application")]
+[Name("portable-app")]
+[Description("Install and run portable application")]
 public class PortableApp : ICommand
 {
     const string ZIP_URL = "https://example.com/app.zip";
     const string INSTALL_DIR = "apps";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 
@@ -636,12 +646,13 @@ public class PortableApp : ICommand
 ```csharp
 namespace Rauch.Plugins.Install;
 
-[Command("teams", "Install Microsoft Teams via remote PowerShell script")]
+[Name("teams")]
+[Description("Install Microsoft Teams via remote PowerShell script")]
 public class Teams : ICommand
 {
     const string SCRIPT_URL = "https://raw.githubusercontent.com/mohammedha/Posh/refs/heads/main/O365/Teams/Install_TeamsV2.0.ps1";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 
@@ -678,10 +689,11 @@ public class Teams : ICommand
 ```csharp
 namespace Rauch.Commands.Windows;
 
-[Command("winrm", "Enable WinRM and configure remote management")]
+[Name("winrm")]
+[Description("Enable WinRM and configure remote management")]
 public class WinRm : ICommand
 {
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 
@@ -725,14 +737,15 @@ public class WinRm : ICommand
 ```csharp
 namespace Rauch.Plugins.Install;
 
-[Command("rauchmelder", "Install Rauchmelder application with .NET 9 runtime")]
+[Name("rauchmelder")]
+[Description("Install Rauchmelder application with .NET 9 runtime")]
 public class Rauchmelder : ICommand
 {
     const string DOTNET_RUNTIME_URL = "http://cloud.it-guards.at/download/dotnet-runtime-9.0.4-win-x64.exe";
     const string RAUCHMELDER_URL = "http://cloud.it-guards.at/download/rauchmelder/windows/Rauchmelder.exe";
     const string INSTALL_DIR = @"C:\ProgramData\Rauchmelder";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 
@@ -809,10 +822,10 @@ public class Rauchmelder : ICommand
 ```csharp
 namespace Rauch.Plugins.Gump;
 
-[Command("usr")]
+[Name("usr")]
 public class Usr : ICommand
 {
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

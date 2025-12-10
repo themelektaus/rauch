@@ -1,9 +1,10 @@
 namespace Rauch.Plugins.Install;
 
-[Command("teams", "Install Microsoft Teams via remote PowerShell script")]
+[Name("teams")]
+[Description("Install Microsoft Teams via remote PowerShell script")]
 public class Teams : ICommand
 {
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

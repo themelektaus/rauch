@@ -1,13 +1,14 @@
 namespace Rauch.Plugins.Run;
 
-[Command("everything", "Download and run Everything Search Engine")]
+[Name("everything")]
+[Description("Download and run Everything Search Engine")]
 public class Everything : ICommand
 {
     const string DOWNLOAD_URL = "https://cloud.it-guards.at/download/everything.exe";
     const string DATA_DIRECTORY = "data";
     const string FILE = "everything.exe";
 
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

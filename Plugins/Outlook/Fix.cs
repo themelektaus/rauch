@@ -2,11 +2,11 @@ using Microsoft.Win32;
 
 namespace Rauch.Plugins.Outlook;
 
-[Command("fix")]
+[Name("fix")]
 public class Fix : ICommand
 {
     [OS("windows")]
-    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
+    public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
         var logger = services.GetService<ILogger>();
 

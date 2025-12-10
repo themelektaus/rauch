@@ -1,6 +1,7 @@
 namespace Rauch.Commands.Windows;
 
-[Command("update")]
+[Name("update")]
+[Keywords("winupdates")]
 public class Update : ICommand
 {
     [OS("windows")]
