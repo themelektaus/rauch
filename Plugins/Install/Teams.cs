@@ -6,12 +6,16 @@ namespace Rauch.Plugins.Install;
 [Description("Install Microsoft Teams via remote PowerShell script")]
 public class Teams : ICommand
 {
+    [OS("windows")]
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
     {
-        var targetVersion = args.FirstOrDefault() ?? "25306.804.4102.7193";
-        
         var logger = services.GetService<ILogger>();
         logger?.Info("Checking installed versions");
+
+        if (!EnsureAdministrator(logger))
+        {
+            return;
+        }
 
         var installedVersions = new List<string>();
 
@@ -29,6 +33,8 @@ public class Teams : ICommand
                 }
             }
         }
+        
+        var targetVersion = args.FirstOrDefault() ?? "25306.804.4102.7193";
         
         if (installedVersions.Contains(targetVersion))
         {
