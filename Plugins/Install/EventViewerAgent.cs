@@ -13,7 +13,7 @@ public class EventViewerAgent : ICommand
             return;
         }
 
-        var exitCode = await ExecutePowershellFile(@"plugins\install\eventviewer-agent.ps1", flags: CommandFlags.NoProfile, logger: logger, ct: ct);
+        var exitCode = await ExecutePowershellFile(@"plugins\install\eventvieweragent.ps1", flags: CommandFlags.NoProfile, logger: logger, ct: ct);
 
         logger?.Exit(exitCode);
     }
