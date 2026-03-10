@@ -8,11 +8,6 @@ public class EventViewerAgent : ICommand
     {
         var logger = services.GetService<ILogger>();
 
-        if (!EnsureAdministrator(logger))
-        {
-            return;
-        }
-
         var exitCode = await ExecutePowershellFile(@"plugins\install\eventvieweragent.ps1", flags: CommandFlags.NoProfile, logger: logger, ct: ct);
 
         logger?.Exit(exitCode);
