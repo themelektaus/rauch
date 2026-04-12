@@ -2,6 +2,8 @@
 
 public static class CommandUtils
 {
+    public static bool IsElevatedProcess => Environment.GetCommandLineArgs().Contains("--elevated");
+
     public static void SetWorkingDirectory(string path, ILogger logger = null)
     {
         if (!Directory.Exists(path))
@@ -93,9 +95,9 @@ public static class CommandUtils
         try
         {
             var exePath = Environment.ProcessPath;
-            var arguments = string.Join(" ", Environment.GetCommandLineArgs().Skip(1));
+            var arguments = string.Join(" ", Environment.GetCommandLineArgs().Skip(1)) + " --elevated";
 
-            var psi = new System.Diagnostics.ProcessStartInfo
+            var psi = new ProcessStartInfo
             {
                 FileName = exePath,
                 Arguments = arguments,
@@ -103,10 +105,14 @@ public static class CommandUtils
                 UseShellExecute = true
             };
 
-            var process = System.Diagnostics.Process.Start(psi);
+            var process = Process.Start(psi);
+            
+            logger?.Success("Running as administrator");
             process?.WaitForExit();
 
+            logger?.Info("Done");
             Environment.Exit(process?.ExitCode ?? 0);
+
             return true;
         }
         catch (System.ComponentModel.Win32Exception)
