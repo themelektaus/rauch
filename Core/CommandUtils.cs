@@ -88,8 +88,33 @@ public static class CommandUtils
             return true;
         }
 
-        logger?.Error("Not running as administrator");
-        logger?.Warning("Please run rauch as administrator to continue", preventSound: true);
+        logger?.Warning("Not running as administrator. Requesting elevation...");
+
+        try
+        {
+            var exePath = Environment.ProcessPath;
+            var arguments = string.Join(" ", Environment.GetCommandLineArgs().Skip(1));
+
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = exePath,
+                Arguments = arguments,
+                Verb = "runas",
+                UseShellExecute = true
+            };
+
+            var process = System.Diagnostics.Process.Start(psi);
+            process?.WaitForExit();
+
+            Environment.Exit(process?.ExitCode ?? 0);
+            return true;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // User clicked "No" on UAC prompt
+            logger?.Error("UAC elevation was declined by the user");
+        }
+
         return false;
     }
 

@@ -4,8 +4,8 @@ namespace Rauch.Plugins.Install;
 [Description("Install Rauchmelder application with .NET 9 runtime")]
 public class Rauchmelder : ICommand
 {
-    const string DOTNET_RUNTIME_URL = "://cloud.it-guards.at/download/dotnet-runtime-9.0.4-win-x64.exe";
-    const string RAUCHMELDER_URL = "://cloud.it-guards.at/download/rauchmelder/windows/Rauchmelder.exe";
+    const string DOTNET_RUNTIME_URL = "://feuerwehr.cloud.it-guards.at/download/dotnet-runtime-9.0.4-win-x64.exe";
+    const string RAUCHMELDER_URL = "://feuerwehr.cloud.it-guards.at/download/rauchmelder/windows/Rauchmelder.exe";
     const string INSTALL_DIR = @"C:\ProgramData\Rauchmelder";
 
     [OS("windows")]
@@ -78,9 +78,7 @@ public class Rauchmelder : ICommand
             var configPath = Path.Combine(INSTALL_DIR, "Config.ini");
             await File.WriteAllLinesAsync(configPath, [
                 "[General]",
-                "InformUrl=https://feuerwehr.cloud.it-guards.at/inform",
-                "DownloadUrl=https://cloud.it-guards.at/download/rauchmelder",
-                "TunnelUrl=https://feuerwehr.cloud.it-guards.at/api/tunnel"
+                "FeuerwehrUrl=https://feuerwehr.cloud.it-guards.at"
             ], ct);
             logger?.Success("Config.ini created");
 
