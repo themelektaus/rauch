@@ -1,11 +1,11 @@
 namespace Rauch.Commands.Windows;
 
-[Name("gpupdate")]
-public class GpUpdate : ICommand
+[Name("azurestatus")]
+public class AzureStatus : ICommand
 {
     [OS("windows")]
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
-        await ExecutePowershellCommand("gpupdate /force", logger: services.GetService<ILogger>(), ct: ct);
+        await ExecutePowershellCommand("dsregcmd /status", logger: services.GetService<ILogger>(), ct: ct);
     }
 }

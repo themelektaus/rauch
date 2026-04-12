@@ -1,7 +1,7 @@
 namespace Rauch.Plugins.Run;
 
 [Name("psexec")]
-[Description("Download and run PsExec")]
+[Description("Download and run PsExec (e.g. rauch run psexec -s -i cmd)")]
 public class PsExec : ICommand
 {
     const string DOWNLOAD_URL = "https://cloud.it-guards.at/download/psexec64.exe";

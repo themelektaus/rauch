@@ -34,13 +34,13 @@ public class Help(IEnumerable<ICommand> availableCommands) : ICommand
 
         foreach (var commandInfo in commandInfos)
         {
-            logger?.Write($"  {commandInfo.name,-15} ", newLine: false, color: ConsoleColor.Yellow);
+            logger?.Write($"  {commandInfo.name,-20} ", newLine: false, color: ConsoleColor.Yellow);
             logger?.Write(commandInfo.description);
 
             foreach (var command in commandInfo.children ?? [])
             {
                 logger?.Write($"    └─ ", newLine: false);
-                logger?.Write($"{command.name,-13} ", newLine: false, color: ConsoleColor.DarkYellow);
+                logger?.Write($"{command.name,-18} ", newLine: false, color: ConsoleColor.DarkYellow);
                 logger?.Write(command.description);
             }
 

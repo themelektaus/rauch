@@ -1,11 +1,11 @@
 namespace Rauch.Commands.Windows;
 
-[Name("gpupdate")]
-public class GpUpdate : ICommand
+[Name("serialnumber")]
+public class Serialnumber : ICommand
 {
     [OS("windows")]
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct = default)
     {
-        await ExecutePowershellCommand("gpupdate /force", logger: services.GetService<ILogger>(), ct: ct);
+        await ExecutePowershellCommand("wmic bios get serialnumber", logger: services.GetService<ILogger>(), ct: ct);
     }
 }

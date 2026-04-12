@@ -2,8 +2,6 @@
 
 public static class CommandUtils
 {
-    public static bool IsElevatedProcess => Environment.GetCommandLineArgs().Contains("--elevated");
-
     public static void SetWorkingDirectory(string path, ILogger logger = null)
     {
         if (!Directory.Exists(path))
@@ -90,36 +88,14 @@ public static class CommandUtils
             return true;
         }
 
-        logger?.Warning("Not running as administrator. Requesting elevation...");
+        logger?.Error("Not running as administrator");
+        logger?.Warning("Please run rauch as administrator to continue", preventSound: true);
 
-        try
-        {
-            var exePath = Environment.ProcessPath;
-            var arguments = string.Join(" ", Environment.GetCommandLineArgs().Skip(1)) + " --elevated";
-
-            var psi = new ProcessStartInfo
-            {
-                FileName = exePath,
-                Arguments = arguments,
-                Verb = "runas",
-                UseShellExecute = true
-            };
-
-            var process = Process.Start(psi);
-            
-            logger?.Success("Running as administrator");
-            process?.WaitForExit();
-
-            logger?.Info("Done");
-            Environment.Exit(process?.ExitCode ?? 0);
-
-            return true;
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            // User clicked "No" on UAC prompt
-            logger?.Error("UAC elevation was declined by the user");
-        }
+        logger?.Write();
+        logger?.Write("[Quick tip] Run the following command to open a console with administrator privileges:", color: ConsoleColor.DarkCyan);
+        logger?.Write(" >_ ", newLine: false, color: ConsoleColor.DarkCyan);
+        logger?.Write("rauch ", newLine: false, color: ConsoleColor.Cyan);
+        logger?.Write("admin", color: ConsoleColor.Yellow);
 
         return false;
     }
@@ -130,7 +106,8 @@ public static class CommandUtils
         None = 0,
         NoProfile = 1,
         UseShellExecute = 2,
-        CreateNoWindow = 4
+        CreateNoWindow = 4,
+        NoExit = 8
     }
 
     public static Task<int> ExecutePowershellCommand(string command, CommandFlags flags = CommandFlags.None, ILogger logger = null, CancellationToken ct = default)
@@ -178,7 +155,7 @@ public static class CommandUtils
         return await StartProcessInternal(
             info,
             "powershell.exe",
-            $"{(flags.HasFlag(CommandFlags.NoProfile) ? "-NoProfile" : "")} -ExecutionPolicy Bypass {arguments}",
+            $"{(flags.HasFlag(CommandFlags.NoProfile) ? "-NoProfile" : "")} {(flags.HasFlag(CommandFlags.NoExit) ? "-NoExit" : "")} -ExecutionPolicy Bypass {arguments}",
             flags,
             logger,
             ct

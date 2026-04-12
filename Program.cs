@@ -18,9 +18,6 @@ var services = new ServiceContainer();
 var logger = new ConsoleLogger(enableColors: true);
 services.RegisterSingleton<ILogger>(logger);
 
-// Filter out internal flags
-args = args.Where(a => a != "--elevated").ToArray();
-
 // Load all available commands via reflection (including plugins)
 var commands = CommandLoader.LoadCommands(logger);
 
@@ -54,7 +51,7 @@ if (args.Length >= 2)
 if (helpCommand is not null)
 {
     var commandInfos = helpCommand.GetFilteredCommandInfos(args).ToList();
-    
+
     if (commandInfos.Count == 1 && commandInfos.SelectMany(x => x.children ?? []).Count() <= 1)
     {
         var commandInfo = commandInfos.First();
@@ -88,13 +85,6 @@ if (helpCommand is not null)
 
 Exit:
 await SoundPlayer.WaitAndDispose();
-
-if (CommandUtils.IsElevatedProcess)
-{
-    logger.Write("");
-    logger.Write("Press any key to exit...", color: ConsoleColor.DarkGray);
-    Console.ReadKey(true);
-}
 
 async Task ValidateAndExecuteAsync(ICommand command, string[] args)
 {

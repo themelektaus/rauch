@@ -21,7 +21,7 @@ public class Teams : ICommand
 
         var windowsAppsFolder = new DirectoryInfo(@"C:\Program Files\WindowsApps");
         var windowsAppsFolders = windowsAppsFolder.GetDirectories();
-        
+
         foreach (var folder in windowsAppsFolders)
         {
             if (folder.Name.StartsWith("MSTeams_"))
@@ -33,9 +33,9 @@ public class Teams : ICommand
                 }
             }
         }
-        
+
         var targetVersion = args.FirstOrDefault() ?? "25306.804.4102.7193";
-        
+
         if (installedVersions.Contains(targetVersion))
         {
             logger?.Success("Already installed");
