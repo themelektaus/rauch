@@ -1,10 +1,9 @@
 namespace Rauch.Plugins.Install;
 
 [Name("rauchmelder")]
-[Description("Install Rauchmelder application with .NET 9 runtime")]
+[Description("Install Rauchmelder application with .NET 10 runtime")]
 public class Rauchmelder : ICommand
 {
-    const string DOTNET_RUNTIME_URL = "://feuerwehr.cloud.it-guards.at/download/dotnet-runtime-9.0.4-win-x64.exe";
     const string RAUCHMELDER_URL = "://feuerwehr.cloud.it-guards.at/download/rauchmelder/windows/Rauchmelder.exe";
     const string INSTALL_DIR = @"C:\ProgramData\Rauchmelder";
 
@@ -27,36 +26,6 @@ public class Rauchmelder : ICommand
 
             // Set working directory
             SetWorkingDirectory(INSTALL_DIR, logger);
-
-            // Check if .NET 9 runtime is installed
-            if (!IsDotNetRuntimeInstalled(logger, 9))
-            {
-                logger?.Warning($".NET 9 runtime not found. Installing...");
-
-                var runtimeInstaller = "dotnet-runtime-9.0.4-win-x64.exe";
-                await DownloadFile(scheme + DOTNET_RUNTIME_URL, runtimeInstaller, logger, ct);
-
-                logger?.Info("Installing .NET runtime (this may take a few minutes)...");
-
-                var exitCode = await StartProcess(
-                    runtimeInstaller,
-                    "/install /quiet /norestart",
-                    CommandFlags.None,
-                    logger,
-                    ct
-                );
-
-                logger?.Exit(exitCode);
-
-                if (exitCode != 0)
-                {
-                    return;
-                }
-            }
-            else
-            {
-                logger?.Info(".NET 9 runtime is already installed");
-            }
 
             await StartProcess("net", "stop rauchmelder", logger: logger, ct: ct);
             await Task.Delay(1);
@@ -91,53 +60,5 @@ public class Rauchmelder : ICommand
         {
             logger?.Error($"Failed to install Rauchmelder: {ex.Message}");
         }
-    }
-
-    private bool IsDotNetRuntimeInstalled(ILogger logger, uint version)
-    {
-        var dotnetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet");
-
-        if (!Directory.Exists(dotnetPath))
-        {
-            return false;
-        }
-
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                Arguments = "--list-runtimes",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow = true
-            };
-
-            using var process = Process.Start(startInfo);
-            if (process == null)
-            {
-                return false;
-            }
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-
-            // Check for Microsoft.NETCore.App
-            var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var line in lines)
-            {
-                if (line.StartsWith($"Microsoft.NETCore.App {version}."))
-                {
-                    logger?.Info($"Found: {line.Trim()}");
-                    return true;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger?.Warning($"Failed to check .NET runtime: {ex.Message}");
-        }
-
-        return false;
     }
 }

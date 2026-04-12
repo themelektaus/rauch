@@ -60,7 +60,7 @@ dotnet run windows manager     # Open Computer Management
 ```bash
 # Install tools
 dotnet run install claude        # Install Claude Code with portable Git Bash
-dotnet run install rauchmelder   # Install Rauchmelder with .NET 9 runtime
+dotnet run install rauchmelder   # Install Rauchmelder with .NET 10 runtime
 dotnet run install office        # Install Microsoft Office
 dotnet run install teams         # Install Microsoft Teams
 dotnet run install vcredist22    # Install Visual C++ Redistributable 2022
