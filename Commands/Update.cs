@@ -86,6 +86,10 @@ del /f /q ""{scriptPath}""
             logger?.Success("Update downloaded successfully!");
             logger?.Warning("Restarting application to apply update...");
 
+            logger?.Debug($"currentExePath: {currentExePath}");
+            logger?.Debug($"tempFilePath: {tempFilePath}");
+            logger?.Debug($"scriptPath: {scriptPath}");
+
             // Start update script in a visible cmd window so the user can see the help output
             var processInfo = new ProcessStartInfo
             {
