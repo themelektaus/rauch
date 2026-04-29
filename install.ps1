@@ -34,8 +34,9 @@ Function IsDotNetRuntimeInstalled
 #                               any user account.
 #   - With --user (no admin) -> per-user install into %USERPROFILE%\.rauch\bin.
 #   - No admin AND no --user -> abort and tell the user how to proceed.
-$userMode = ($args -contains '--user') -or ($args -contains '-user') -or ($args -contains '-User')
-$isAdmin  = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$userMode    = ($args -contains '--user') -or ($args -contains '-user') -or ($args -contains '-User')
+$unattended  = ($args -contains '--unattended') -or ($args -contains '-unattended') -or ($args -contains '-Unattended')
+$isAdmin     = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 if (-not $isAdmin -and -not $userMode)
 {
@@ -264,4 +265,7 @@ Write-Host ""
 
 # Launch rauch
 cmd /c rauch update
-cmd /k rauch
+if (-not $unattended)
+{
+    cmd /k rauch
+}
