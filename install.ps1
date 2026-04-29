@@ -27,7 +27,42 @@ Function IsDotNetRuntimeInstalled
     return $False
 }
 
-$path = "$env:USERPROFILE\.rauch\bin"
+# Determine installation mode:
+#   - Default (admin)        -> system-wide install into C:\ProgramData\Rauch
+#                               with ACL "Users:Modify" so EVERY user can run rauch
+#                               AND rauch can do its relative-path downloads under
+#                               any user account.
+#   - With --user (no admin) -> per-user install into %USERPROFILE%\.rauch\bin.
+#   - No admin AND no --user -> abort and tell the user how to proceed.
+$userMode = ($args -contains '--user') -or ($args -contains '-user') -or ($args -contains '-User')
+$isAdmin  = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+if (-not $isAdmin -and -not $userMode)
+{
+    Write-Host "ERROR: Administrator rights are required for system-wide installation." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Either:" -ForegroundColor Yellow
+    Write-Host "  1) Re-run this script in an elevated PowerShell, or" -ForegroundColor Yellow
+    Write-Host "  2) Install for the current user only by passing --user:" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host '     iex "& { $(irm https://raw.githubusercontent.com/themelektaus/rauch/main/install.ps1) } --user"' -ForegroundColor Cyan
+    Write-Host ""
+    exit 1
+}
+
+if ($userMode)
+{
+    $path = "$env:USERPROFILE\.rauch\bin"
+    $pathScope = "User"
+    Write-Host "Installing for current user only ($env:USERNAME) [--user]." -ForegroundColor Cyan
+}
+else
+{
+    $path = "C:\ProgramData\Rauch"
+    $pathScope = "Machine"
+    Write-Host "Admin rights detected -> installing system-wide for all users." -ForegroundColor Cyan
+}
+Write-Host ""
 
 # Create installation directory if it doesn't exist
 if (!(Test-Path -PathType Container $path))
@@ -36,6 +71,36 @@ if (!(Test-Path -PathType Container $path))
     New-Item -ItemType Directory -Path $path | Out-Null
     Write-Host "  -> $path" -ForegroundColor Gray
     Write-Host ""
+}
+
+# When installing system-wide, grant the built-in Users group Modify rights so
+# every user can write into the rauch folder (rauch downloads files relative to
+# its own location at runtime). Use the well-known SID *S-1-5-32-545 to stay
+# language-independent (works on German/English Windows alike).
+if ($isAdmin -and -not $userMode)
+{
+    Write-Host "Setting ACL (Users: Modify) on $path ..." -ForegroundColor Yellow
+    try
+    {
+        $acl = Get-Acl $path
+        $usersSid = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-545")
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+            $usersSid,
+            "Modify",
+            "ContainerInherit,ObjectInherit",
+            "None",
+            "Allow"
+        )
+        $acl.SetAccessRule($rule)
+        Set-Acl -Path $path -AclObject $acl
+        Write-Host "  -> ACL successfully updated" -ForegroundColor Green
+        Write-Host ""
+    }
+    catch
+    {
+        Write-Host "  -> ACL update failed: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host ""
+    }
 }
 
 Set-Location $path
@@ -91,20 +156,20 @@ catch
     exit 1
 }
 
-# Add to PATH if not exists
-$currentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+# Add to PATH (Machine when admin, User otherwise) if not exists
+$currentPath = [Environment]::GetEnvironmentVariable("Path", $pathScope)
 
-if ($currentUserPath -notlike "*$path*")
+if ($currentPath -notlike "*$path*")
 {
-    Write-Host "Adding rauch to PATH environment variable..." -ForegroundColor Yellow
-    [Environment]::SetEnvironmentVariable("Path", "$currentUserPath;$path", "User")
+    Write-Host "Adding rauch to $pathScope PATH environment variable..." -ForegroundColor Yellow
+    [Environment]::SetEnvironmentVariable("Path", "$currentPath;$path", $pathScope)
     Write-Host "  -> PATH successfully updated" -ForegroundColor Green
     Write-Host ""
     Write-Host "IMPORTANT: Please restart your console for 'rauch' to be available everywhere." -ForegroundColor Yellow
 }
 else
 {
-    Write-Host "rauch is already in PATH." -ForegroundColor Green
+    Write-Host "rauch is already in $pathScope PATH." -ForegroundColor Green
 }
 
 Write-Host ""
