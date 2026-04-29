@@ -47,7 +47,7 @@ if (-not $isAdmin -and -not $userMode)
     Write-Host ""
     Write-Host '     iex "& { $(irm https://raw.githubusercontent.com/themelektaus/rauch/main/install.ps1) } --user"' -ForegroundColor Cyan
     Write-Host ""
-    exit 1
+    return
 }
 
 if ($userMode)
@@ -103,6 +103,94 @@ if ($isAdmin -and -not $userMode)
     }
 }
 
+# When installing system-wide, clean up any leftover per-user installations:
+#   - delete %USERPROFILE%\.rauch in every user profile
+#   - remove %USERPROFILE%\.rauch\bin entries from every user's PATH
+# This works for all profiles (loaded or not) by temporarily mounting
+# their NTUSER.DAT hive via reg load / reg unload.
+if ($isAdmin -and -not $userMode)
+{
+    Write-Host "Cleaning up per-user rauch installations on this machine..." -ForegroundColor Yellow
+
+    $profiles = Get-CimInstance -ClassName Win32_UserProfile -ErrorAction SilentlyContinue |
+        Where-Object { -not $_.Special -and $_.LocalPath -and (Test-Path $_.LocalPath) }
+
+    foreach ($profile in $profiles)
+    {
+        $localPath = $profile.LocalPath
+        $sid       = $profile.SID
+
+        # 1) Delete %USERPROFILE%\.rauch
+        $rauchDir = Join-Path $localPath ".rauch"
+        if (Test-Path $rauchDir)
+        {
+            try
+            {
+                Remove-Item -Path $rauchDir -Recurse -Force -ErrorAction Stop
+                Write-Host "  -> Removed $rauchDir" -ForegroundColor Gray
+            }
+            catch
+            {
+                Write-Host "  -> Could not remove ${rauchDir}: $($_.Exception.Message)" -ForegroundColor Red
+            }
+        }
+
+        # 2) Remove .rauch\bin entries from this user's PATH
+        $hiveKey    = "HKEY_USERS\$sid"
+        $envKey     = "Registry::$hiveKey\Environment"
+        $hiveLoaded = Test-Path "Registry::$hiveKey"
+        $weLoaded   = $false
+
+        if (-not $hiveLoaded)
+        {
+            $ntuser = Join-Path $localPath "NTUSER.DAT"
+            if (Test-Path $ntuser)
+            {
+                $null = reg.exe load "$hiveKey" "$ntuser" 2>&1
+                if ($LASTEXITCODE -eq 0)
+                {
+                    $weLoaded = $true
+                }
+            }
+        }
+
+        if (Test-Path $envKey)
+        {
+            try
+            {
+                $userPath = (Get-ItemProperty -Path $envKey -Name "Path" -ErrorAction SilentlyContinue).Path
+                if ($userPath)
+                {
+                    $entries = $userPath -split ';' | Where-Object {
+                        $_ -and ($_.Trim().TrimEnd('\') -notmatch '(?i)\\\.rauch(\\bin)?$')
+                    }
+                    $newPath = ($entries -join ';').Trim(';')
+                    if ($newPath -ne $userPath)
+                    {
+                        Set-ItemProperty -Path $envKey -Name "Path" -Value $newPath
+                        Write-Host "  -> Cleaned PATH for SID $sid" -ForegroundColor Gray
+                    }
+                }
+            }
+            catch
+            {
+                Write-Host "  -> PATH cleanup failed for SID ${sid}: $($_.Exception.Message)" -ForegroundColor Red
+            }
+        }
+
+        if ($weLoaded)
+        {
+            # Force GC so the registry handles are released before unloading
+            [gc]::Collect()
+            [gc]::WaitForPendingFinalizers()
+            $null = reg.exe unload "$hiveKey" 2>&1
+        }
+    }
+
+    Write-Host "  -> Cleanup done" -ForegroundColor Green
+    Write-Host ""
+}
+
 Set-Location $path
 
 if (!(IsDotNetRuntimeInstalled))
@@ -125,7 +213,7 @@ if (!(IsDotNetRuntimeInstalled))
     catch
     {
         Write-Host "  -> Download error: $($_.Exception.Message)" -ForegroundColor Red
-        exit 3
+        return
     }
 
     Write-Host "Installing .NET 10 (Runtime) ..." -ForegroundColor Yellow
@@ -138,7 +226,7 @@ if (!(IsDotNetRuntimeInstalled))
     catch
     {
         Write-Host "  -> Installation error: $($_.Exception.Message)" -ForegroundColor Red
-        exit 2
+        return
     }
 }
 
@@ -153,7 +241,7 @@ try
 catch
 {
     Write-Host "  -> Download error: $($_.Exception.Message)" -ForegroundColor Red
-    exit 1
+    return
 }
 
 # Add to PATH (Machine when admin, User otherwise) if not exists
