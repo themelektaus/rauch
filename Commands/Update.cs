@@ -73,7 +73,7 @@ public class Update : ICommand
 
             // Create update script
             var scriptPath = Path.Combine(currentDir, "update-script.bat");
-            var script = $@"@echo off
+            var script = $@"
 timeout /t 2 /nobreak >nul
 del /f /q ""{currentExePath}""
 move /y ""{tempFilePath}"" ""{currentExePath}""
