@@ -45,7 +45,7 @@ if (-not $isAdmin -and -not $userMode)
     Write-Host "  1) Re-run this script in an elevated PowerShell, or" -ForegroundColor Yellow
     Write-Host "  2) Install for the current user only by passing --user:" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host '     iex "& { $(irm https://raw.githubusercontent.com/themelektaus/rauch/main/install.ps1) } --user"' -ForegroundColor Cyan
+    Write-Host '     iex "& { $(irm it-guards.at/rauch) } --user"' -ForegroundColor Cyan
     Write-Host ""
     return
 }
