@@ -78,8 +78,7 @@ timeout /t 2 /nobreak >nul
 del /f /q ""{currentExePath}""
 move /y ""{tempFilePath}"" ""{currentExePath}""
 del /f /q ""{scriptPath}""
-start """" ""{currentExePath}"" help
-exit
+""{currentExePath}"" help
 ";
 
             await File.WriteAllTextAsync(scriptPath, script, ct);
@@ -87,12 +86,11 @@ exit
             logger?.Success("Update downloaded successfully!");
             logger?.Warning("Restarting application to apply update...");
 
-            // Start update script and exit
+            // Start update script in a visible cmd window so the user can see the help output
             var processInfo = new ProcessStartInfo
             {
                 FileName = "cmd.exe",
                 Arguments = $"/c \"\"{scriptPath}\"\"",
-                CreateNoWindow = true,
                 UseShellExecute = false
             };
 
