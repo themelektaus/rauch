@@ -76,6 +76,8 @@ $pathsToDelete = @(
     "$userProfile\AppData\Local\Microsoft\OneAuth",
     "$userProfile\AppData\Local\Microsoft\Office\16.0\Wef",
     "$userProfile\AppData\Local\Microsoft\Office\OTele",
+    "$userProfile\AppData\Local\Microsoft\Office\Licenses",
+    "$userProfile\AppData\Local\Microsoft\Office\Licensing",
     "$userProfile\AppData\Roaming\Microsoft\Office\Recent",
     "$userProfile\AppData\Local\Packages\Microsoft.AAD.BrokerPlugin_*",
     "$userProfile\AppData\Local\Packages\Microsoft.Windows.CloudExperienceHost_*"

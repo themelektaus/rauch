@@ -1,4 +1,4 @@
-﻿$separator = "-------------------------------------------"
+﻿$separator = "-----------------------------------------------------------------------"
 
 class Host {
     [string] $Name
@@ -84,9 +84,9 @@ while ($running)
             $color = &{ If ($_host.IsOnline) { "green" } Else { "red" } }
 
             Write-Host -ForegroundColor $color "" (
-                (Get-Date -Format "[HH:mm:ss]").PadRight(12)
+                (Get-Date -Format "[dd.MM.yyyy] [HH:mm:ss]").PadRight(25)
             ) (
-                $_host.Name.PadRight(20)
+                $_host.Name.PadRight(35)
             ) (
                 &{ If ($_host.IsOnline) { "     OK" } Else { "OFFLINE" } }
             )
