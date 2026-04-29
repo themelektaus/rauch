@@ -1,9 +1,13 @@
 Environment.CurrentDirectory = AppContext.BaseDirectory;
 
-// Setup console appearance
-Console.CursorVisible = true;
-Console.ForegroundColor = ConsoleColor.Gray;
-Console.BackgroundColor = ConsoleColor.Black;
+// Setup console appearance (skip silently if no console handle is attached, e.g. unattended runs)
+try
+{
+    Console.CursorVisible = true;
+    Console.ForegroundColor = ConsoleColor.Gray;
+    Console.BackgroundColor = ConsoleColor.Black;
+}
+catch (IOException) { }
 
 var soundEnabled = ConfigIni.Read(data => data["Sound"]["Enabled"]);
 if (soundEnabled == "1")

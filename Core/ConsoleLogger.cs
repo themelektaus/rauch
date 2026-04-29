@@ -253,7 +253,7 @@ public sealed class ConsoleLogger : ILogger
 
         public int ReadIndex()
         {
-            Console.CursorVisible = false;
+            try { Console.CursorVisible = false; } catch (IOException) { }
 
             for (; ; )
             {
@@ -276,7 +276,7 @@ public sealed class ConsoleLogger : ILogger
                 }
             }
 
-            Console.CursorVisible = true;
+            try { Console.CursorVisible = true; } catch (IOException) { }
             return items.FindIndex(x => x.selected);
         }
 
