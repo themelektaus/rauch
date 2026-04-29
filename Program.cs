@@ -1,5 +1,17 @@
 Environment.CurrentDirectory = AppContext.BaseDirectory;
 
+// Clean up leftover .old executable from a previous self-update
+// (could not be deleted while it was the running image; safe to remove now)
+try
+{
+    var oldExe = Path.Combine(AppContext.BaseDirectory, "rauch.exe.old");
+    if (File.Exists(oldExe))
+    {
+        File.Delete(oldExe);
+    }
+}
+catch { }
+
 // Setup console appearance (skip silently if no console handle is attached, e.g. unattended runs)
 try
 {

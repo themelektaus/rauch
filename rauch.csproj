@@ -5,7 +5,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationIcon>Logo.ico</ApplicationIcon>
-    <Version>0.8.0.4</Version>
+    <Version>0.8.0.5</Version>
   </PropertyGroup>
 
   <ItemGroup>

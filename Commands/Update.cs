@@ -8,6 +8,7 @@ public class Update : ICommand
     const string GitHubRawUrl = "https://raw.githubusercontent.com/themelektaus/rauch/main/Build/Windows/rauch.exe";
     const string GitHubPluginsZipUrl = "https://raw.githubusercontent.com/themelektaus/rauch/main/Build/Plugins.zip";
     const string TempFileName = "rauch.exe.new";
+    const string OldFileName = "rauch.exe.old";
     const string PluginsZipFileName = "Plugins.zip";
 
     public async Task ExecuteAsync(string[] args, IServiceProvider services, CancellationToken ct)
@@ -71,35 +72,31 @@ public class Update : ICommand
             try { File.Delete(Path.Combine(pluginsDir, "uninstall", "nxlog.ps1")); } catch { }
             try { Directory.Delete(Path.Combine(pluginsDir, "uninstall")); } catch { }
 
-            // Create update script
-            var scriptPath = Path.Combine(currentDir, "update-script.bat");
-            var script = $@"@echo off
-timeout /t 2 /nobreak >nul
-del /f /q ""{currentExePath}""
-move /y ""{tempFilePath}"" ""{currentExePath}""
-""{currentExePath}"" help
-del /f /q ""{scriptPath}""
-";
+            // Step 3: Swap exe in-place using rename trick
+            //         (Windows allows renaming a running .exe, only deletion is blocked.
+            //          The old file gets cleaned up on next startup in Program.cs.)
+            var oldExePath = Path.Combine(currentDir, OldFileName);
 
-            await File.WriteAllTextAsync(scriptPath, script, ct);
+            // Remove leftover .old from a previous update attempt (best effort)
+            try { File.Delete(oldExePath); } catch { }
 
-            logger?.Success("Update downloaded successfully!");
-            logger?.Warning("Restarting application to apply update...");
+            File.Move(currentExePath, oldExePath);
+            File.Move(tempFilePath, currentExePath);
 
-            logger?.Write($"currentExePath: {currentExePath}", color: ConsoleColor.DarkGray);
-            logger?.Write($"tempFilePath: {tempFilePath}", color: ConsoleColor.DarkGray);
-            logger?.Write($"scriptPath: {scriptPath}", color: ConsoleColor.DarkGray);
+            logger?.Success("Update applied successfully!");
+            logger?.Info("Launching new version...");
 
-            // Start update script in a visible cmd window so the user can see the help output
+            // Run new rauch.exe synchronously in the SAME console
+            //   ? output stays attached, parent shell waits naturally for us to return
             var processInfo = new ProcessStartInfo
             {
-                FileName = scriptPath
+                FileName = currentExePath,
+                Arguments = "help",
+                UseShellExecute = false
             };
 
-            Process.Start(processInfo);
-
-            // Exit current process to allow update
-            Environment.Exit(0);
+            using var process = Process.Start(processInfo);
+            process?.WaitForExit();
         }
         catch (HttpRequestException ex)
         {
