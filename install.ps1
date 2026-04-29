@@ -263,9 +263,9 @@ else
 
 Write-Host ""
 
-# Launch rauch
-cmd /c rauch update
+# Update & Launch rauch
 if (-not $unattended)
 {
+    cmd /c rauch update
     cmd /k rauch
 }
