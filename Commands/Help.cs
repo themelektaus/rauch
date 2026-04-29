@@ -47,6 +47,8 @@ public class Help(IEnumerable<ICommand> availableCommands) : ICommand
             logger?.Write();
         }
 
+        WriteFooterLine(logger);
+
         return Task.CompletedTask;
     }
 
@@ -57,7 +59,16 @@ public class Help(IEnumerable<ICommand> availableCommands) : ICommand
         logger?.Write(" >_ ", newLine: false, color: ConsoleColor.DarkCyan);
         logger?.Write("rauch", color: ConsoleColor.Cyan);
         logger?.Write();
+    }
 
+    public static void WriteFooterLine(ILogger logger)
+    {
+        var version = System.Reflection.Assembly.GetExecutingAssembly()?.GetName()?.Version?.ToString() ?? string.Empty;
+        if (version != string.Empty)
+        {
+            logger?.Write($"version {version}", color: ConsoleColor.DarkGray);
+            logger?.Write($"© 2025-{DateTime.Now.Year} it guards. All rights reserved.", color: ConsoleColor.DarkGray);
+        }
     }
 
     public List<CommandInfo> GetCommandInfos(string[] args)

@@ -89,9 +89,7 @@ del /f /q ""{scriptPath}""
             // Start update script in a visible cmd window so the user can see the help output
             var processInfo = new ProcessStartInfo
             {
-                FileName = "cmd.exe",
-                Arguments = $"/c \"\"{scriptPath}\"\"",
-                UseShellExecute = false
+                FileName = scriptPath
             };
 
             Process.Start(processInfo);
