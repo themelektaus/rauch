@@ -7,7 +7,15 @@ public class Speedtest : ICommand
     {
         var logger = services.GetService<ILogger>();
 
-        var exitCode = await ExecutePowershellFile(@"plugins\run\speedtest.ps1", flags: CommandFlags.NoProfile, logger: logger, ct: ct);
+        var exitCode = await ExecutePowershellFile(
+            @"plugins\run\speedtest.ps1",
+            (args.FirstOrDefault() ?? string.Empty).Contains("json")
+                ? "--json"
+                : "",
+            flags: CommandFlags.NoProfile,
+            logger: logger,
+            ct: ct
+        );
 
         logger?.Exit(exitCode);
     }

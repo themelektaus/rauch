@@ -25,6 +25,14 @@ function Download($Url, $Filename, $Force = $False)
 
 Download "https://cloud.it-guards.at/download/speedtest.exe" "speedtest.exe"
 
+if ($args -contains '--json') {
+    $j = (& ./speedtest.exe --accept-license --accept-gdpr --progress=no --format=json) | ConvertFrom-Json
+    Write-Host "    Ping : $([math]::Round($j.ping.latency)) ms"
+    Write-Host "Download : $([math]::Round($j.download.bandwidth * 8 / 1000000, 2)) Mbit/s => $([math]::Round($j.download.bandwidth / 1000000, 2)) MB/s"
+    Write-Host "  Upload : $([math]::Round($j.upload.bandwidth * 8 / 1000000, 2)) Mbit/s => $([math]::Round($j.upload.bandwidth / 1000000, 2)) MB/s"
+    return
+}
+
 $running = $true
 
 while ($running)
