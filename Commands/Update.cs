@@ -73,12 +73,12 @@ public class Update : ICommand
 
             // Create update script
             var scriptPath = Path.Combine(currentDir, "update-script.bat");
-            var script = $@"
+            var script = $@"@echo off
 timeout /t 2 /nobreak >nul
 del /f /q ""{currentExePath}""
 move /y ""{tempFilePath}"" ""{currentExePath}""
-del /f /q ""{scriptPath}""
 ""{currentExePath}"" help
+del /f /q ""{scriptPath}""
 ";
 
             await File.WriteAllTextAsync(scriptPath, script, ct);
