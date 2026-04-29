@@ -90,7 +90,8 @@ exit
             // Start update script and exit
             var processInfo = new ProcessStartInfo
             {
-                FileName = scriptPath,
+                FileName = "cmd.exe",
+                Arguments = $"/c \"\"{scriptPath}\"\"",
                 CreateNoWindow = true,
                 UseShellExecute = false
             };
